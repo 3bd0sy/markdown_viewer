@@ -1,0 +1,143 @@
+/* ═══════════════════════════════════════════════
+   preview.css
+   ═══════════════════════════════════════════════ */
+
+/* ── Preview Container ────────────────────────── */
+#preview {
+  flex: 1;
+  padding: 14px 18px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--txt);
+  background: var(--bg);
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+/* ── Headings ─────────────────────────────────── */
+#preview h1 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid var(--bdr);
+}
+#preview h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+#preview h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 14px 0 6px;
+}
+#preview h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+}
+
+/* ── Paragraphs & Lists ───────────────────────── */
+#preview p {
+  margin: 0 0 10px;
+}
+#preview ul,
+#preview ol {
+  padding-left: 20px;
+  margin: 0 0 10px;
+}
+#preview li {
+  margin: 3px 0;
+}
+
+/* ── Links ────────────────────────────────────── */
+#preview a {
+  color: var(--info);
+  text-decoration: none;
+}
+#preview a:hover {
+  text-decoration: underline;
+}
+
+/* ── Blockquote ───────────────────────────────── */
+#preview blockquote {
+  border-left: 3px solid var(--bdr);
+  margin: 10px 0;
+  padding: 4px 14px;
+  color: var(--txt2);
+}
+
+/* ── Horizontal Rule ──────────────────────────── */
+#preview hr {
+  border: none;
+  border-top: 0.5px solid var(--bdr);
+  margin: 14px 0;
+}
+
+/* ── Tables ───────────────────────────────────── */
+#preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  font-size: 13px;
+}
+#preview th,
+#preview td {
+  border: 0.5px solid var(--bdr);
+  padding: 7px 12px;
+}
+#preview th {
+  background: var(--bg2);
+  font-weight: 500;
+}
+#preview tr:nth-child(even) td {
+  background: var(--bg2);
+}
+
+/* ── Inline Code ──────────────────────────────── */
+#preview :not(pre) > code {
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  /* background: #282c34;
+  color: #abb2bf; */
+  background: var(--badge-bg);
+  color: var(--badge-color);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ── Checkboxes (Task Lists) ──────────────────── */
+#preview input[type="checkbox"] {
+  accent-color: var(--info);
+  margin-right: 6px;
+  pointer-events: none;
+  transform: scale(1.15);
+}
+
+/* ── Table of Contents Block ──────────────────── */
+#preview .toc-block {
+  background: var(--bg2);
+  border: 0.5px solid var(--bdr);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+#preview .toc-block ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+#preview .toc-block li {
+  margin: 3px 0;
+}
+#preview .toc-block a {
+  color: var(--info);
+  font-size: 13px;
+  text-decoration: none;
+}
+#preview .toc-block a:hover {
+  text-decoration: underline;
+}

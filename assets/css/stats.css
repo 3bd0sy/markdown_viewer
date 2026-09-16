@@ -1,0 +1,71 @@
+/* ═══════════════════════════════════════════════
+   stats.css
+   ═══════════════════════════════════════════════ */
+
+/* ── Stats Bar Container ──────────────────────── */
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 5px 12px;
+  border-top: 0.5px solid var(--bdr);
+  background: var(--bg2);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+/* ── Individual Stat Item ─────────────────────── */
+.stat {
+  font-size: 11px;
+  color: var(--txt2);
+}
+.stat b {
+  color: var(--txt);
+  font-weight: 500;
+}
+
+/* ── Save Indicator (Fade In/Out) ─────────────── */
+#saveindicator {
+  font-size: 10px;
+  color: var(--txt2);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#saveindicator.show {
+  opacity: 1;
+}
+
+/* ── Save / Clear Buttons ─────────────────────── */
+#savebtn,
+#clearbtn {
+  font-size: 11px;
+  padding: 2px 7px;
+  border: 0.5px solid var(--bdr);
+  background: var(--bg);
+  color: var(--txt2);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: system-ui;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+#savebtn:hover {
+  background: var(--bg3);
+  color: var(--info);
+}
+#clearbtn:hover {
+  background: var(--bg3);
+  color: #e06c75;
+}
+
+/* ── RTL/LTR: Save button pushes to the edge ─── */
+[dir="ltr"] #savebtn {
+  margin-left: auto;
+  margin-right: 0;
+}
+[dir="rtl"] #savebtn {
+  margin-right: auto;
+  margin-left: 0;
+}

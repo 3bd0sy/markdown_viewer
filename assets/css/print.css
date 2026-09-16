@@ -1,0 +1,104 @@
+/* ═══════════════════════════════════════════════
+   print.css — Loaded only inside the export iframe.
+   Not linked from index.html.
+   ═══════════════════════════════════════════════ */
+
+@page {
+  size: A4;
+  margin: 18mm 15mm;
+}
+
+html,
+body {
+  background: #fff !important;
+  color: #111 !important;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+#preview {
+  max-width: none;
+  padding: 0;
+  overflow: visible;
+  height: auto;
+}
+
+/* CRITICAL: content-visibility:auto skips rendering for
+   off-screen blocks, and the print engine would emit them
+   as blank space. Must be disabled for print.            */
+#preview .mm-wrap,
+#preview .code-wrap {
+  content-visibility: visible !important;
+  contain-intrinsic-size: auto !important;
+}
+
+/* Interactive chrome has no meaning on paper */
+.mm-hdr-r,
+.mm-save,
+.copy-btn,
+.run-btn,
+.code-actions,
+.code-output,
+.mm-skeleton,
+.mm-fs-overlay {
+  display: none !important;
+}
+
+/* Keep blocks whole across page breaks */
+.mm-wrap,
+.code-wrap,
+table,
+blockquote,
+figure {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+h1,
+h2,
+h3 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+h1 {
+  break-before: page;
+}
+h1:first-of-type {
+  break-before: auto;
+}
+
+/* Diagrams must fit the page width */
+.mm-body svg,
+.plotly-host svg {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* Code stays readable in print: light background */
+.code-wrap pre {
+  background: #f6f8fa !important;
+  border: 1px solid #ddd;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.code-wrap pre code,
+.code-wrap .hljs {
+  background: transparent !important;
+  color: #24292f !important;
+}
+
+/* Show link targets — they are not clickable on paper */
+a[href^="http"]::after {
+  content: " (" attr(href) ")";
+  font-size: 10px;
+  color: #666;
+  word-break: break-all;
+}
+
+.toc-block {
+  border: 1px solid #ddd;
+  padding: 10px 14px;
+  break-inside: avoid;
+}

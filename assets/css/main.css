@@ -1,0 +1,160 @@
+/* ═══════════════════════════════════════════════
+   main.css — CSS Variables, Reset, Layout
+   ═══════════════════════════════════════════════ */
+
+/* ── Reset ────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── CSS Custom Properties (Light Theme) ─────── */
+#app {
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --bg3: #eaeaea;
+  --txt: #111111;
+  --txt2: #666666;
+  --bdr: rgba(0, 0, 0, 0.11);
+  --info: #2563eb;
+  --badge-bg: #f4f4f5;
+  --badge-color: #1e293b;
+  --fs: 14px;
+  --scroll-thumb: #c7cbd1;
+  --scroll-thumb-hover: #a8adb5;
+  --scroll-track: #f1f3f5;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  border: 0.5px solid rgba(0, 0, 0, 0.13);
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--txt);
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+/* ── Dark Theme ───────────────────────────────── */
+#app.dark {
+  --bg: #1a1b1e;
+  --bg2: #111213;
+  --bg3: #0d0e10;
+  --txt: #e2e4e9;
+  --txt2: #7a7f8a;
+  --bdr: rgba(255, 255, 255, 0.1);
+  --info: #60a5fa;
+  --badge-bg: #282c34;
+  --badge-color: #abb2bf;
+  --scroll-thumb: #3a3d44;
+  --scroll-thumb-hover: #4e525b;
+  --scroll-track: #202226;
+  color-scheme: dark;
+}
+
+/* ── Panes Layout ─────────────────────────────── */
+.panes {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Pane Separator — RTL/LTR aware ──────────── */
+[dir="ltr"] .pane + .pane {
+  border-left: 0.5px solid var(--bdr);
+  border-right: none;
+}
+[dir="rtl"] .pane + .pane {
+  border-right: 0.5px solid var(--bdr);
+  border-left: none;
+}
+
+/* ── Pane Label ───────────────────────────────── */
+.plabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--txt2);
+  padding: 5px 12px;
+  border-bottom: 0.5px solid var(--bdr);
+  background: var(--bg2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+/* ── View Modes ───────────────────────────────── */
+.edit-mode .pane:last-child {
+  display: none;
+}
+.preview-mode .pane:first-child {
+  display: none;
+}
+.preview-mode .pane:last-child {
+  border: none;
+}
+/* ── Content Font Size — controlled by setFontSize() ── */
+#editor {
+  font-size: var(--fs, 14px);
+}
+#preview {
+  font-size: var(--fs, 15px);
+}
+
+/* ══════════════════════════════════════════════════
+   Zen Mode — hides chrome, widens the writing column
+   ══════════════════════════════════════════════════ */
+#app.zen-mode .bar {
+  display: none;
+}
+
+#app.zen-mode .stats {
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+
+#app.zen-mode .stats:hover {
+  opacity: 1;
+}
+
+#app.zen-mode .plabel {
+  display: none;
+}
+
+
+#app.zen-mode.split .pane:first-child {
+  flex: 1 1 70%;
+}
+
+#app.zen-mode.split .pane:last-child {
+  flex: 1 1 30%;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+#app.zen-mode.split .pane:last-child:hover {
+  opacity: 1;
+}
+
+#app.zen-mode:not(.edit-mode):not(.preview-mode) .pane:first-child {
+  flex: 1 1 70%;
+}
+
+#app.zen-mode:not(.edit-mode):not(.preview-mode) .pane:last-child {
+  flex: 1 1 30%;
+  opacity: 0.5;
+}

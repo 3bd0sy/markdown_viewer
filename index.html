@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ar" dir="rtl" id="html-root">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown Editor</title>
+
+    <!-- MathJax config must precede the library -->
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+        },
+        startup: { typeset: false },
+      };
+    </script>
+
+    <!-- Vendor CSS -->
+    <link rel="stylesheet" href="assets/vendor/highlight-atom-dark.min.css" />
+
+    <!-- App CSS — load order matters -->
+    <link rel="stylesheet" href="assets/css/main.css" />
+    <link rel="stylesheet" href="assets/css/toolbar.css" />
+    <link rel="stylesheet" href="assets/css/editor.css" />
+    <link rel="stylesheet" href="assets/css/preview.css" />
+    <link rel="stylesheet" href="assets/css/mermaid.css" />
+    <link rel="stylesheet" href="assets/css/code.css" />
+    <link rel="stylesheet" href="assets/css/stats.css" />
+    <link rel="stylesheet" href="assets/css/render.css" />
+  </head>
+
+  <body>
+    <div id="app">
+      <!-- ═══════════════ TOOLBAR ═══════════════ -->
+      <div class="bar">
+        <div class="bar-l">
+          <span class="bar-title" data-i18n="appTitle">✦ Markdown Editor</span>
+
+          <div class="fmt-btns">
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="bold"
+              data-i18n-tip="bold"
+              title="Bold"
+            >
+              <b>B</b>
+            </button>
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="italic"
+              data-i18n-tip="italic"
+              title="Italic"
+            >
+              <i>I</i>
+            </button>
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="icode"
+              data-i18n-tip="inlineCode"
+              title="Inline code"
+            >
+              `
+            </button>
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="block"
+              data-i18n-tip="codeBlock"
+              title="Code block"
+            >
+              { }
+            </button>
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="mermaid"
+              data-i18n-tip="mermaid"
+              title="Mermaid"
+            >
+              ⬡
+            </button>
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="math"
+              data-i18n-tip="math"
+              title="Math block"
+            >
+              ∑
+            </button>
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="h2"
+              data-i18n-tip="heading"
+              title="Heading"
+            >
+              H
+            </button>
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="list"
+              data-i18n-tip="list"
+              title="List"
+            >
+              ≡
+            </button>
+            <button
+              class="btn"
+              data-action="fmt"
+              data-fmt="table"
+              data-i18n-tip="table"
+              title="Table"
+            >
+              ⊞
+            </button>
+
+            <span class="btn-sep" aria-hidden="true"></span>
+
+            <button
+              class="btn"
+              data-action="dir"
+              data-dir="rtl"
+              data-i18n-tip="rtlBlock"
+              title="RTL block"
+            >
+              ← ع
+            </button>
+            <button
+              class="btn"
+              data-action="dir"
+              data-dir="ltr"
+              data-i18n-tip="ltrBlock"
+              title="LTR block"
+            >
+              ع →
+            </button>
+          </div>
+        </div>
+
+        <div class="bar-r">
+          <div class="export-dropdown" id="export-dd">
+            <button
+              class="btn-accent"
+              id="xbtn"
+              data-action="export-toggle"
+              aria-haspopup="true"
+              aria-expanded="false"
+              data-i18n="exportWord"
+            >
+              Export
+            </button>
+
+            <ul class="export-menu" id="export-menu" role="menu" hidden>
+              <li role="menuitem" data-action="export" data-format="word">
+                📄 Word (.docx)
+              </li>
+
+              <li role="menuitem" data-action="export" data-format="pdf">
+                📕 PDF (.pdf)
+              </li>
+
+              <li role="menuitem" data-action="export" data-format="md">
+                📝 Markdown (.md)
+              </li>
+              <li role="menuitem" data-action="export" data-format="txt">
+                📃 Plain Text (.txt)
+              </li>
+              <li role="menuitem" data-action="export" data-format="pptx">
+                📊 PowerPoint (.pptx)
+              </li>
+            </ul>
+          </div>
+          <span id="xstatus" aria-live="polite"></span>
+
+          <button
+            class="btn"
+            id="tbtn"
+            data-action="theme"
+            title="Toggle dark/light"
+            aria-label="Toggle dark/light mode"
+          >
+            🌙
+          </button>
+
+          <button
+            class="btn"
+            id="syncbtn"
+            data-action="scroll-sync-toggle"
+            data-i18n-tip="scrollSync"
+            title="Sync scrolling"
+            aria-pressed="false"
+          >
+            🔗
+          </button>
+
+          <!-- <button
+            class="btn"
+            id="zenbtn"
+            data-action="zen-toggle"
+            data-i18n-tip="zenMode"
+            title="Zen mode (Ctrl+Shift+Z)"
+          >
+            🧘
+          </button> -->
+
+          <button
+            class="btn"
+            id="langbtn"
+            data-action="lang"
+            title="Switch language / تبديل اللغة"
+            aria-label="Switch language"
+          >
+            EN
+          </button>
+
+          <div class="tabs" role="tablist">
+            <button
+              class="tab on"
+              data-action="mode"
+              data-mode="split"
+              role="tab"
+              aria-selected="true"
+              data-i18n="split"
+            >
+              Split
+            </button>
+            <button
+              class="tab"
+              data-action="mode"
+              data-mode="edit"
+              role="tab"
+              aria-selected="false"
+              data-i18n="edit"
+            >
+              Edit
+            </button>
+            <button
+              class="tab"
+              data-action="mode"
+              data-mode="preview"
+              role="tab"
+              aria-selected="false"
+              data-i18n="preview"
+            >
+              Preview
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ PANES ═══════════════ -->
+      <div class="panes">
+        <div class="pane">
+          <div class="plabel" data-i18n="mdLabel">Markdown</div>
+          <textarea
+            id="editor"
+            spellcheck="false"
+            aria-label="Markdown editor"
+          ></textarea>
+        </div>
+        <div class="pane">
+          <div class="plabel" data-i18n="previewLabel">Preview</div>
+          <div
+            id="preview"
+            aria-live="polite"
+            aria-label="Rendered preview"
+          ></div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ STATS BAR ═══════════════ -->
+      <div class="stats">
+        <span class="stat"
+          ><span data-i18n="words">Words</span>: <b id="sw">0</b></span
+        >
+        <span class="stat"
+          ><span data-i18n="lines">Lines</span>: <b id="sl">0</b></span
+        >
+        <span class="stat"
+          ><span data-i18n="chars">Chars</span>: <b id="sc">0</b></span
+        >
+        <span id="saveindicator" aria-live="polite" data-i18n="saved"
+          >💾 محفوظ</span
+        >
+        <button
+          id="savebtn"
+          data-action="save"
+          data-i18n="saveBtn"
+          aria-label="Save"
+        >
+          💾 حفظ
+        </button>
+        <button
+          id="clearbtn"
+          data-action="clear"
+          data-i18n="clearBtn"
+          aria-label="Clear"
+        >
+          🗑 مسح
+        </button>
+      </div>
+    </div>
+    <!-- /#app -->
+
+    <!-- ═══════════════ VENDOR — eager ═══════════════
+         Only what the first render needs.
+         plotly / docx / pptxgen / model-viewer are
+         fetched on demand by LazyLoader.            -->
+    <script defer src="assets/vendor/marked.min.js"></script>
+    <script defer src="assets/vendor/highlight.min.js"></script>
+    <script defer src="assets/vendor/mermaid.min.js"></script>
+    <script
+      async
+      id="MathJax-script"
+      src="assets/vendor/mathjax/tex-chtml.js"
+    ></script>
+
+    <!-- ═══════════════ APP — dependency order ═══════════════ -->
+    <!-- core -->
+    <script defer src="assets/js/core/logger.js"></script>
+    <script defer src="assets/js/core/utils.js"></script>
+    <script defer src="assets/js/core/event-bus.js"></script>
+    <script defer src="assets/js/core/dom.js"></script>
+    <script defer src="assets/js/core/store.js"></script>
+    <script defer src="assets/js/core/lazy-loader.js"></script>
+
+    <!-- i18n + content -->
+    <script defer src="assets/js/i18n/translations.js"></script>
+    <script defer src="assets/js/i18n/i18n.js"></script>
+    <script defer src="assets/js/content/default-document.js"></script>
+
+    <!-- services -->
+    <script defer src="assets/js/services/theme.service.js"></script>
+    <script defer src="assets/js/services/storage.service.js"></script>
+    <script defer src="assets/js/services/mermaid.service.js"></script>
+    <script defer src="assets/js/services/plotly.service.js"></script>
+    <script defer src="assets/js/services/math.service.js"></script>
+
+    <!-- parser -->
+    <script defer src="assets/js/parser/highlighter.js"></script>
+    <script defer src="assets/js/parser/preprocessors.js"></script>
+    <script defer src="assets/js/parser/block-registry.js"></script>
+    <script defer src="assets/js/parser/blocks/mermaid.block.js"></script>
+    <script defer src="assets/js/parser/blocks/plotly.block.js"></script>
+    <script defer src="assets/js/parser/blocks/map.block.js"></script>
+    <script defer src="assets/js/parser/blocks/video.block.js"></script>
+    <script defer src="assets/js/parser/blocks/model3d.block.js"></script>
+    <script defer src="assets/js/parser/blocks/code.block.js"></script>
+    <script defer src="assets/js/parser/markdown-parser.js"></script>
+
+    <!-- render -->
+    <script defer src="assets/js/render/dom-differ.js"></script>
+    <script defer src="assets/js/render/toc-builder.js"></script>
+    <script defer src="assets/js/render/preview-renderer.js"></script>
+
+    <!-- editor -->
+    <script defer src="assets/js/editor/format-commands.js"></script>
+    <script defer src="assets/js/editor/editor-controller.js"></script>
+    <script defer src="assets/js/editor/scroll-sync.js"></script>
+    <script defer src="assets/js/editor/drag-drop.js"></script>
+    <script defer src="assets/js/editor/code-runner.js"></script>
+
+    <!-- viewer -->
+    <script defer src="assets/js/viewer/fullscreen-viewer.js"></script>
+    <script defer src="assets/js/viewer/diagram-exporter.js"></script>
+
+    <!-- export -->
+    <script defer src="assets/js/export/word/direction-resolver.js"></script>
+    <script defer src="assets/js/export/word/docx-builder.js"></script>
+    <script defer src="assets/js/export/exporters/base.exporter.js"></script>
+    <script
+      defer
+      src="assets/js/export/exporters/markdown.exporter.js"
+    ></script>
+    <script defer src="assets/js/export/exporters/text.exporter.js"></script>
+    <script defer src="assets/js/export/exporters/word.exporter.js"></script>
+    <script defer src="assets/js/export/exporters/pdf.exporter.js"></script>
+    <script defer src="assets/js/export/exporters/pptx.exporter.js"></script>
+    <script defer src="assets/js/export/export-manager.js"></script>
+
+    <!-- composition root — always last -->
+    <script defer src="assets/js/app.js"></script>
+  </body>
+</html>

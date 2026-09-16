@@ -1,0 +1,271 @@
+/* ═══════════════════════════════════════════════
+   render.css — Styles the new render pipeline needs.
+   Loaded last so it can rely on the variables that
+   main.css defines.
+   ═══════════════════════════════════════════════ */
+
+/* ── Lazy diagram placeholder ─────────────────
+   Reserves height so lazily drawn diagrams do not
+   shift the page as they appear.                  */
+#preview .mm-body {
+  min-height: 120px;
+}
+
+.mm-skeleton {
+  height: 120px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--bg3, #f1f3f5) 25%,
+    var(--bdr, #e0e3e7) 50%,
+    var(--bg3, #f1f3f5) 75%
+  );
+  background-size: 200% 100%;
+  animation: mm-shimmer 1.2s linear infinite;
+}
+
+@keyframes mm-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-skeleton {
+    animation: none;
+  }
+}
+
+/* ── Off-screen work area ─────────────────────
+   Diagram export needs a rendered element for
+   getBBox, so it cannot use display:none.         */
+.offscreen-stage {
+  position: fixed;
+  top: -99999px;
+  left: -99999px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ── Skip layout and paint for off-screen blocks ── */
+#preview .mm-wrap,
+#preview .code-wrap {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+/* ── Block chrome ─────────────────────────────── */
+.mm-sub {
+  font-size: 11px;
+  color: var(--txt2, #6b7280);
+  margin-inline-start: 6px;
+}
+
+.mm-err {
+  color: #e06c75;
+  font-size: 12px;
+  padding: 10px 12px;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.embed-frame {
+  width: 100%;
+  border: 0;
+  border-radius: 0 0 10px 10px;
+  display: block;
+}
+
+.embed-video {
+  width: 100%;
+  max-height: 420px;
+  border-radius: 0 0 10px 10px;
+  display: block;
+  background: #000;
+}
+
+.plotly-host {
+  width: 100%;
+  height: 380px;
+  padding: 8px;
+}
+
+.model-host {
+  width: 100%;
+  height: 420px;
+  display: block;
+}
+
+.code-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.code-output.is-error {
+  color: #e06c75;
+}
+
+.btn-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--bdr, #e0e3e7);
+  margin: 0 4px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ── Table of contents ────────────────────────── */
+.toc-hdr {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.toc-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt, #111);
+}
+
+.toc-toggle {
+  margin-inline-start: auto;
+  font-size: 11px;
+  color: var(--txt2, #6b7280);
+}
+
+.toc-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toc-item {
+  margin: 3px 0;
+}
+.toc-l2 {
+  padding-inline-start: 16px;
+}
+.toc-l3 {
+  padding-inline-start: 32px;
+}
+
+.footnote-item {
+  font-size: 12px;
+  color: var(--txt2, #6b7280);
+  margin: 4px 0;
+}
+
+/* ── Fullscreen viewer extras ─────────────────── */
+.mm-fs-loading,
+.mm-fs-error {
+  padding: 48px 40px;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mm-fs-loading {
+  color: #999;
+}
+.mm-fs-error {
+  color: #e06c75;
+}
+
+.mm-fs-zlbl {
+  font-size: 11px;
+  color: #ddd;
+  min-width: 44px;
+  text-align: center;
+}
+
+/* ── Focus visibility ─────────────────────────── */
+.btn:focus-visible,
+.btn-accent:focus-visible,
+.tab:focus-visible,
+.mm-save:focus-visible {
+  outline: 2px solid var(--info, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════
+   Scrollbars — theme-aware.
+   The native scrollbar ignores CSS variables; only
+   `color-scheme` (set on #app.dark in main.css)
+   switches the OS rendering. These rules refine it.
+   ═══════════════════════════════════════════════ */
+
+/* Modern standard — Firefox + Chrome 121+ */
+#editor,
+#preview,
+.mm-fs-canvas,
+.export-menu,
+.code-wrap pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+/* WebKit fallback — Safari and older Chromium */
+#editor::-webkit-scrollbar,
+#preview::-webkit-scrollbar,
+.mm-fs-canvas::-webkit-scrollbar,
+.export-menu::-webkit-scrollbar,
+.code-wrap pre::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#editor::-webkit-scrollbar-track,
+#preview::-webkit-scrollbar-track,
+.mm-fs-canvas::-webkit-scrollbar-track,
+.export-menu::-webkit-scrollbar-track,
+.code-wrap pre::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+#editor::-webkit-scrollbar-thumb,
+#preview::-webkit-scrollbar-thumb,
+.mm-fs-canvas::-webkit-scrollbar-thumb,
+.export-menu::-webkit-scrollbar-thumb,
+.code-wrap pre::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 6px;
+  /* Inset border keeps the thumb from touching the edges */
+  border: 2px solid var(--scroll-track);
+  background-clip: padding-box;
+}
+
+#editor::-webkit-scrollbar-thumb:hover,
+#preview::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
+}
+
+/* The white square where the two scrollbars meet */
+#editor::-webkit-scrollbar-corner,
+#preview::-webkit-scrollbar-corner,
+.code-wrap pre::-webkit-scrollbar-corner {
+  background: var(--scroll-track);
+}
+
+/* The textarea also renders the caret and selection
+   from the OS palette — pin them to the theme. */
+#app.dark #editor {
+  caret-color: var(--info);
+}
+#app.dark #editor::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+
+/* ── Scroll sync toggle ───────────────────────── */
+#syncbtn.active {
+  background: var(--info);
+  color: #fff;
+  border-color: var(--info);
+}

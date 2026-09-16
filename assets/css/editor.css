@@ -1,0 +1,27 @@
+/* ═══════════════════════════════════════════════
+   editor.css —(Textarea)
+   ═══════════════════════════════════════════════ */
+
+#editor {
+  flex: 1;
+  padding: 14px;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  border: none;
+  outline: none;
+  resize: none;
+  background: var(--bg);
+  color: var(--txt);
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border 0.15s;
+  tab-size: 2;
+}
+
+/* ── Drag & Drop Visual Feedback ──────────────── */
+#editor.drag-over {
+  background: color-mix(in srgb, var(--info) 8%, var(--bg));
+  border: 1.5px dashed var(--info);
+}

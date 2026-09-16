@@ -1,0 +1,111 @@
+/* ═══════════════════════════════════════════════
+   code.css Highlight.js
+   ═══════════════════════════════════════════════ */
+
+/* ── Code Block Wrapper ───────────────────────── */
+#preview .code-wrap {
+  background: #282c34;
+  border-radius: 10px;
+  margin: 12px 0;
+  overflow: hidden;
+  border: 0.5px solid rgba(255, 255, 255, 0.07);
+  direction: ltr;
+  text-align: left;
+}
+
+/* ── Code Block Header ────────────────────────── */
+#preview .code-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  background: #21252b;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ── Language Label ───────────────────────────── */
+#preview .code-lang {
+  font-size: 11px;
+  font-weight: 500;
+  color: #5c6370;
+  font-family: monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Header Button Group ──────────────────────── */
+#preview .code-hdr-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Copy Button ──────────────────────────────── */
+#preview .copy-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: #5c6370;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: system-ui;
+  transition: color 0.12s;
+}
+#preview .copy-btn:hover {
+  color: #abb2bf;
+}
+#preview .copy-btn.ok {
+  color: #98c379 !important;
+  border-color: #98c379;
+}
+
+/* ── Run Button (JS only) ─────────────────────── */
+#preview .run-btn {
+  font-size: 11px;
+  padding: 2px 9px;
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: #61afef;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: system-ui;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+#preview .run-btn:hover {
+  background: rgba(97, 175, 239, 0.12);
+  color: #7ec8f7;
+}
+
+/* ── Code Block — Pre/Code ────────────────────── */
+#preview pre {
+  margin: 0;
+  direction: ltr;
+  text-align: left;
+}
+
+#preview pre code.hljs {
+  background: transparent;
+  padding: 14px 16px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  display: block;
+  font-family: "Courier New", monospace;
+  direction: ltr;
+  text-align: left;
+}
+
+/* ── Code Output (after Run) ──────────────────── */
+#preview .code-output {
+  padding: 10px 16px;
+  font-family: monospace;
+  font-size: 12px;
+  background: #1a1d23;
+  color: #abb2bf;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.07);
+  white-space: pre-wrap;
+  direction: ltr;
+  text-align: left;
+}

@@ -1,0 +1,197 @@
+/* ═══════════════════════════════════════════════
+   toolbar.css
+   ═══════════════════════════════════════════════ */
+
+/* ── Toolbar Bar ──────────────────────────────── */
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 0.5px solid var(--bdr);
+  background: var(--bg2);
+  flex-shrink: 0;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.bar-l {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-r {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── App Title ────────────────────────────────── */
+.bar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--txt);
+  white-space: nowrap;
+}
+
+/* ── Format Buttons Group ─────────────────────── */
+.fmt-btns {
+  display: flex;
+  gap: 3px;
+}
+
+/* ── Base Button ──────────────────────────────── */
+.btn {
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border: 0.5px solid var(--bdr);
+  background: var(--bg);
+  color: var(--txt2);
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: monospace;
+  transition:
+    background 0.12s,
+    color 0.12s;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.btn:hover {
+  background: var(--bg3);
+  color: var(--txt);
+}
+
+/* ── Accent Button (Word Export) ──────────────── */
+.btn-accent {
+  font-family: system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+
+.btn-accent:hover {
+  background: #1d4ed8;
+}
+.btn-accent:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* ── Language Toggle Button ───────────────────── */
+#langbtn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border: 0.5px solid var(--bdr);
+  background: var(--bg);
+  color: var(--txt2);
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: system-ui;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+  letter-spacing: 0.03em;
+}
+
+#langbtn:hover {
+  background: var(--bg3);
+  color: var(--info);
+  border-color: var(--info);
+}
+
+/* ── Export Status Text ───────────────────────── */
+#xstatus {
+  font-size: 11px;
+  color: var(--txt2);
+}
+
+/* ── Tabs (Split / Edit / Preview) ───────────── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg3);
+  padding: 3px;
+  border-radius: 7px;
+}
+
+.tab {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: none;
+  background: transparent;
+  color: var(--txt2);
+  cursor: pointer;
+  border-radius: 5px;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.tab.on {
+  background: var(--bg);
+  color: var(--txt);
+  font-weight: 500;
+  border: 0.5px solid var(--bdr);
+}
+
+/* ── Export Dropdown Container ───────────────── */
+.export-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* ── Dropdown Menu ───────────────────────────── */
+.export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--bg);
+  border: 0.5px solid var(--bdr);
+  border-radius: 7px;
+  padding: 4px;
+  min-width: 200px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.13);
+  z-index: 999;
+  list-style: none;
+  margin: 0;
+}
+
+[dir="rtl"] .export-menu {
+  right: auto;
+  left: 0;
+}
+
+/* ── Menu Items ──────────────────────────────── */
+.export-menu li {
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 5px;
+  color: var(--txt);
+  white-space: nowrap;
+  transition: background 0.1s;
+  font-family: system-ui, sans-serif;
+}
+
+.export-menu li:hover {
+  background: var(--bg3);
+}
+
+/* ── Disabled Item ───────────────────────────── */
+.export-menu li.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.export-menu li.disabled:hover {
+  background: transparent;
+}
