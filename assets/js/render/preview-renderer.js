@@ -20,6 +20,51 @@ class PreviewRenderer {
     this.math = math;
     this.toc = toc;
     this._modelViewerRequested = false;
+    this._bindTabClicks();
+  }
+
+  _bindTabClicks() {
+    this.previewEl.addEventListener("click", (event) => {
+      const btn = event.target.closest(".md-tabs .md-tab");
+      if (!btn) return;
+
+      const wrap = btn.closest(".md-tabs");
+      const index = btn.dataset.tabIndex;
+      if (wrap.dataset.activeTab === index) return;
+
+      wrap.dataset.activeTab = index;
+
+      wrap.querySelectorAll(".md-tab").forEach((b) => {
+        const active = b.dataset.tabIndex === index;
+        b.classList.toggle("is-active", active);
+        b.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      wrap.querySelectorAll(".md-tab-panel").forEach((p) => {
+        const active = p.dataset.panelIndex === index;
+        p.classList.toggle("is-active", active);
+        if (active) p.removeAttribute("hidden");
+        else p.setAttribute("hidden", "");
+      });
+    });
+
+    this.previewEl.addEventListener("keydown", (event) => {
+      const btn = event.target.closest(".md-tabs .md-tab");
+      if (!btn) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+      const wrap = btn.closest(".md-tabs");
+      const tabs = Array.from(wrap.querySelectorAll(".md-tab"));
+      const idx = tabs.indexOf(btn);
+      const next =
+        event.key === "ArrowRight"
+          ? tabs[(idx + 1) % tabs.length]
+          : tabs[(idx - 1 + tabs.length) % tabs.length];
+
+      next.focus();
+      next.click();
+      event.preventDefault();
+    });
   }
 
   get previewEl() {
@@ -59,6 +104,12 @@ class PreviewRenderer {
       html,
       DomDiffer.defaultDispose,
     );
+    this.previewEl.querySelectorAll(".md-tabs").forEach((wrap) => {
+      const active = wrap.dataset.activeTab;
+      if (!active || active === "0") return;
+      const btn = wrap.querySelector(`.md-tab[data-tab-index="${active}"]`);
+      if (btn) btn.click();
+    });
     Logger.debug(
       `swap: ${stats.reused} reused, ${stats.created} new, ${stats.dropped} dropped`,
     );

@@ -24,9 +24,6 @@ body {
   height: auto;
 }
 
-/* CRITICAL: content-visibility:auto skips rendering for
-   off-screen blocks, and the print engine would emit them
-   as blank space. Must be disabled for print.            */
 #preview .mm-wrap,
 #preview .code-wrap {
   content-visibility: visible !important;

@@ -20,11 +20,15 @@ class DocxBuilder {
     h4: "4472C4",
     h5: "808080",
     h6: "999999",
-    codeBg: "282C34",
-    codeHdr: "21252B",
-    codeTextDark: "ABB2BF",
-    codeMuted: "5C6370",
-    codeBdr: "3A3F4B",
+    codeBg: "FFFFFF",
+    codeHdr: "F6F8FA",
+    codeTextDark: "24292F",
+    codeMuted: "6E7781",
+    codeBdr: "D0D7DE",
+
+    winRed: "FF5F56",
+    winYellow: "FFBD2E",
+    winGreen: "27C93F",
     mermaidBg: "FDF6FF",
     mermaidBar: "A855F7",
     mermaidLbl: "7B2D8B",
@@ -37,34 +41,32 @@ class DocxBuilder {
     footer: "888888",
   };
 
-  /* ── highlight.js class → DOCX colour ──────── */
   static HLJS_COLORS = {
-    keyword: "C678DD",
-    selectorTag: "E06C75",
-    literal: "56B6C2",
-    number: "D19A66",
-    string: "98C379",
-    regexp: "98C379",
-    title: "61AFEF",
-    function: "61AFEF",
-    builtIn: "E6C07B",
-    type: "E6C07B",
-    class: "E5C07B",
-    attr: "D19A66",
-    attribute: "D19A66",
-    variable: "E06C75",
-    params: "ABB2BF",
-    comment: "5C6370",
-    doctag: "C678DD",
-    meta: "ABB2BF",
-    tag: "E06C75",
-    name: "E06C75",
-    section: "61AFEF",
-    bullet: "98C379",
-    symbol: "56B6C2",
-    subst: "E06C75",
+    keyword: "CF222E",
+    selectorTag: "116329",
+    literal: "0550AE",
+    number: "0550AE",
+    string: "0A3069",
+    regexp: "0A3069",
+    title: "8250DF",
+    function: "8250DF",
+    builtIn: "953800",
+    type: "953800",
+    class: "953800",
+    attr: "0550AE",
+    attribute: "0550AE",
+    variable: "953800",
+    params: "24292F",
+    comment: "6E7781",
+    doctag: "CF222E",
+    meta: "6E7781",
+    tag: "116329",
+    name: "116329",
+    section: "8250DF",
+    bullet: "0A3069",
+    symbol: "0550AE",
+    subst: "24292F",
   };
-
   static FONTS = {
     mono: "Courier New",
     body: "Arial",
@@ -157,7 +159,10 @@ class DocxBuilder {
     // per-block guessing.
     if (!this.dir.resolved) this.dir.resolveDocument(markdown);
 
-    const tokens = marked.lexer(Preprocessors.footnotes(markdown));
+    let src = Preprocessors.footnotes(markdown);
+    src = Preprocessors.callouts(src);
+    src = Preprocessors.tabs(src);
+    const tokens = marked.lexer(src);
     const children = this.processTokens(tokens);
 
     const doc = new Document({
@@ -592,8 +597,6 @@ class DocxBuilder {
     const barColor = isMermaid ? C.mermaidBar : C.codeBdr;
     const elements = [];
 
-    // Diagrams are matched by their order in the document,
-    // which is stable no matter how DOM ids are built.
     const image = isMermaid ? this.imageMap[this.mermaidIndex++] : null;
 
     if (isMermaid && image?.dataUrl) {
@@ -618,48 +621,70 @@ class DocxBuilder {
       }
     }
 
-    if (lang) {
-      elements.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: isMermaid ? "⬡ Mermaid Diagram" : lang.toUpperCase(),
-              bold: true,
-              size: 16,
-              color: isMermaid ? C.mermaidLbl : C.codeMuted,
-              font: isMermaid ? DocxBuilder.FONTS.body : DocxBuilder.FONTS.mono,
-            }),
-          ],
-          shading: {
-            fill: isMermaid ? "F3E8FF" : C.codeHdr,
-            type: ShadingType.CLEAR,
-          },
-          spacing: { before: 160, after: 0 },
-          indent: { left: 360, right: 360 },
-          // Source listings are LTR by nature: explicit
-          // LEFT here is correct because bidi is off.
-          alignment: AlignmentType.LEFT,
-          bidirectional: false,
-          border: {
-            left: { style: BorderStyle.THICK, size: 16, color: barColor },
-          },
-        }),
+    const headerFill = isMermaid ? "F3E8FF" : C.codeHdr;
+    const headerChildren = [];
+
+    if (!isMermaid) {
+      headerChildren.push(
+        new TextRun({ text: "●", color: C.winRed, size: 18, font: "Arial" }),
+        new TextRun({ text: "  ", size: 14 }),
+        new TextRun({ text: "●", color: C.winYellow, size: 18, font: "Arial" }),
+        new TextRun({ text: "  ", size: 14 }),
+        new TextRun({ text: "●", color: C.winGreen, size: 18, font: "Arial" }),
+        new TextRun({ text: "     ", size: 14 }),
       );
     }
 
-    const lineStyle = (fill) => ({
+    const tabLabel = isMermaid
+      ? "⬡  Mermaid Diagram"
+      : `  ${lang ? lang.toUpperCase() : "CODE"}  `;
+
+    headerChildren.push(
+      new TextRun({
+        text: tabLabel,
+        bold: true,
+        size: 16,
+        color: isMermaid ? C.mermaidLbl : C.codeMuted,
+        font: DocxBuilder.FONTS.mono,
+        shading: { fill: "FFFFFF", type: ShadingType.CLEAR },
+      }),
+    );
+
+    elements.push(
+      new Paragraph({
+        children: headerChildren,
+        shading: { fill: headerFill, type: ShadingType.CLEAR },
+        spacing: { before: 180, after: 0, line: 320 },
+        indent: { left: 360, right: 360 },
+        alignment: AlignmentType.LEFT,
+        bidirectional: false,
+        border: {
+          top: { style: BorderStyle.SINGLE, size: 6, color: barColor },
+          left: { style: BorderStyle.SINGLE, size: 6, color: barColor },
+          right: { style: BorderStyle.SINGLE, size: 6, color: barColor },
+          bottom: { style: BorderStyle.SINGLE, size: 4, color: barColor },
+        },
+      }),
+    );
+
+    const lineStyle = (fill, opts = {}) => ({
       shading: { fill, type: ShadingType.CLEAR },
       spacing: { before: 0, after: 0, line: 276 },
       indent: { left: 360, right: 360 },
       alignment: AlignmentType.LEFT,
       bidirectional: false,
       border: {
-        left: { style: BorderStyle.SINGLE, size: 10, color: barColor },
+        left: { style: BorderStyle.SINGLE, size: 6, color: barColor },
+        right: { style: BorderStyle.SINGLE, size: 6, color: barColor },
+        ...(opts.last
+          ? { bottom: { style: BorderStyle.SINGLE, size: 6, color: barColor } }
+          : {}),
       },
     });
 
     if (isMermaid) {
-      for (const line of String(tok.text || "").split("\n")) {
+      const lines = String(tok.text || "").split("\n");
+      lines.forEach((line, i) => {
         elements.push(
           new Paragraph({
             children: [
@@ -667,19 +692,23 @@ class DocxBuilder {
                 text: line || " ",
                 font: DocxBuilder.FONTS.mono,
                 size: 18,
-                color: "1A1A1A",
+                color: C.codeTextDark,
               }),
             ],
-            ...lineStyle(C.mermaidBg),
+            ...lineStyle(C.mermaidBg, { last: i === lines.length - 1 }),
           }),
         );
-      }
+      });
     } else {
-      for (const runs of this.highlightLines(tok.text || "", lang)) {
+      const lines = this.highlightLines(tok.text || "", lang);
+      lines.forEach((runs, i) => {
         elements.push(
-          new Paragraph({ children: runs, ...lineStyle(C.codeBg) }),
+          new Paragraph({
+            children: runs,
+            ...lineStyle(C.codeBg, { last: i === lines.length - 1 }),
+          }),
         );
-      }
+      });
     }
 
     elements.push(
@@ -916,10 +945,14 @@ class DocxBuilder {
   /* ═══════════ Raw HTML ═══════════ */
 
   doHtml(tok) {
-    const text = Utils.decodeHtmlEntities(
-      String(tok.text || "").replace(/<[^>]+>/g, ""),
-    ).trim();
+    const raw = String(tok.text || "");
 
+    const calloutMatch = raw.match(/data-callout="(\w+)"/);
+    if (calloutMatch) return this._doCallout(calloutMatch[1], raw);
+
+    if (/class="md-tabs"/.test(raw)) return this._doTabs(raw);
+
+    const text = Utils.decodeHtmlEntities(raw.replace(/<[^>]+>/g, "")).trim();
     if (!text) return null;
 
     return this.paragraphAuto(text, {
@@ -927,6 +960,146 @@ class DocxBuilder {
       children: [this.run({ text, color: "888888", italics: true })],
       spacing: { before: 60, after: 60 },
     });
+  }
+
+  _doCallout(type, rawHtml) {
+    const { TextRun, ShadingType, BorderStyle } = this.d;
+
+    const PALETTE = {
+      note: { bar: "0969DA", bg: "DDF4FF", fg: "0550AE" },
+      info: { bar: "0969DA", bg: "DDF4FF", fg: "0550AE" },
+      tip: { bar: "1A7F37", bg: "DAFBE1", fg: "116329" },
+      success: { bar: "1A7F37", bg: "DAFBE1", fg: "116329" },
+      warning: { bar: "9A6700", bg: "FFF8C5", fg: "7D4E00" },
+      danger: { bar: "CF222E", bg: "FFEBE9", fg: "A40E26" },
+      error: { bar: "CF222E", bg: "FFEBE9", fg: "A40E26" },
+      quote: { bar: "6E7781", bg: "F6F8FA", fg: "57606A" },
+    };
+    const p = PALETTE[type] || PALETTE.note;
+
+    const titleMatch = rawHtml.match(/class="md-callout-lbl">([^<]+)</);
+    const title = titleMatch ? titleMatch[1] : type.toUpperCase();
+
+    const bodyMatch = rawHtml.match(
+      /<div class="md-callout-body">([\s\S]*?)<\/div>\s*<\/div>\s*$/,
+    );
+    const inner = bodyMatch ? bodyMatch[1] : "";
+
+    const bodyText = inner
+      .replace(/<\/(p|li|h[1-6]|div)>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    const fullText = `${title} ${bodyText}`;
+    const isRtl = this.resolveBlock(fullText, "blockquote");
+
+    const borderSpec = isRtl
+      ? { right: { style: BorderStyle.THICK, size: 24, color: p.bar } }
+      : { left: { style: BorderStyle.THICK, size: 24, color: p.bar } };
+
+    const indent = isRtl ? { right: 240 } : { left: 240 };
+
+    const elements = [];
+
+    elements.push(
+      this.paragraphAuto(title, {
+        blockType: "blockquote",
+        inherited: isRtl,
+        children: [
+          new TextRun({
+            text: title,
+            bold: true,
+            size: 18,
+            color: p.fg,
+            font: DocxBuilder.FONTS.body,
+          }),
+        ],
+        shading: { fill: p.bg, type: ShadingType.CLEAR },
+        border: borderSpec,
+        spacing: { before: 140, after: 0 },
+        indent,
+      }),
+    );
+
+    const blocks = bodyText.split(/\n\n+/);
+    blocks.forEach((block, i) => {
+      elements.push(
+        this.paragraphAuto(block, {
+          blockType: "blockquote",
+          inherited: isRtl,
+          children: [new TextRun({ text: block, size: 22 })],
+          shading: { fill: p.bg, type: ShadingType.CLEAR },
+          border: borderSpec,
+          spacing: { before: 0, after: i === blocks.length - 1 ? 180 : 80 },
+          indent,
+        }),
+      );
+    });
+
+    return elements;
+  }
+
+  _doTabs(rawHtml) {
+    const { TextRun } = this.d;
+
+    const titles = [
+      ...rawHtml.matchAll(/class="md-tab[^"]*"[^>]*>([^<]+)<\/button>/g),
+    ].map((m) => m[1].trim());
+
+    const panels = [];
+    const panelRe =
+      /<div class="md-tab-panel[^"]*"[^>]*>([\s\S]*?)(?=<div class="md-tab-panel|<\/div>\s*<\/div>\s*$)/g;
+    let m;
+    while ((m = panelRe.exec(rawHtml)) !== null) panels.push(m[1]);
+
+    const elements = [];
+
+    panels.forEach((panel, i) => {
+      const title = titles[i] || `Tab ${i + 1}`;
+
+      const text = panel
+        .replace(/<\/(p|li|h[1-6]|div|pre)>/gi, "\n")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+      const isRtl = this.resolveBlock(`${title} ${text}`, "blockquote");
+
+      const indent = isRtl ? { right: 240 } : { left: 240 };
+
+      elements.push(
+        this.paragraphAuto(title, {
+          blockType: "heading",
+          inherited: isRtl,
+          children: [
+            new TextRun({
+              text: `▸ ${title}`,
+              bold: true,
+              size: 22,
+              color: DocxBuilder.COLORS.h2,
+            }),
+          ],
+          spacing: { before: i === 0 ? 160 : 240, after: 60 },
+        }),
+      );
+
+      if (text) {
+        elements.push(
+          this.paragraphAuto(text, {
+            blockType: "blockquote",
+            inherited: isRtl,
+            children: [new TextRun({ text, size: 22 })],
+            spacing: { after: 120 },
+            indent,
+          }),
+        );
+      }
+    });
+
+    return elements;
   }
 
   /* ═══════════ Spacer ═══════════ */

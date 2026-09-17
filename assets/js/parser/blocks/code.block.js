@@ -20,7 +20,14 @@ class CodeBlock extends BaseBlock {
     return `
     <div class="code-wrap" data-key="${Utils.attr(key)}">
       <div class="code-hdr">
-        <span class="code-lang">${Utils.esc(lang || "text")}</span>
+
+      <div class="code-dots" aria-hidden="true">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+      </div>
+
+      <span class="code-lang">${Utils.esc(lang || "text")}</span>
         <div class="code-actions">
           ${runBtn}
           <button class="copy-btn" data-action="copy-code"

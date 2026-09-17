@@ -33,9 +33,14 @@ class MarkdownParser {
     };
 
     const withFootnotes = Preprocessors.footnotes(source);
-    const { src: safe, map: mathMap } = Preprocessors.extractMath(withFootnotes);
 
-    const tokens = marked.lexer(safe);
+    const { src: afterMath, map: mathMap } =
+      Preprocessors.extractMath(withFootnotes);
+
+    let src = Preprocessors.callouts(afterMath);
+    src = Preprocessors.tabs(src);
+    const tokens = marked.lexer(src);
+
     let html = "";
     let batch = [];
 

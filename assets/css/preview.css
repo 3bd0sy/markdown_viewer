@@ -46,7 +46,8 @@
 }
 #preview ul,
 #preview ol {
-  padding-left: 20px;
+  padding-inline-start: 20px;
+  padding-inline-end: 0;
   margin: 0 0 10px;
 }
 #preview li {
