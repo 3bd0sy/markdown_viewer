@@ -89,24 +89,12 @@ class MarkdownEditorApp {
     this._bindActions();
     this._bindSubscriptions();
     this._bindLifecycle();
-    this._paintScrollSync(this.scrollSync.restore());
 
     await this.renderer.render();
     this.math.bindStartup(() => this.math.typeset());
   }
 
   /* ═══════════ Event routing ═══════════ */
-
-  /** Reflects sync state on the toolbar button. */
-  _paintScrollSync(enabled) {
-    const btn = DOM.el("syncbtn");
-    if (!btn) return;
-    btn.classList.toggle("active", enabled);
-    btn.setAttribute("aria-pressed", String(enabled));
-  }
-  get isZen() {
-    return DOM.el("app")?.classList.contains("zen-mode") ?? false;
-  }
 
   _bindActions() {
     const routes = {
@@ -116,11 +104,6 @@ class MarkdownEditorApp {
       theme: () => this.theme.toggle(),
       lang: () => this.i18n.toggle(),
       mode: (el) => this.theme.setMode(el.dataset.mode, el),
-
-      "zen-toggle": () => this._paintZen(this.theme.toggleZen()),
-
-      "scroll-sync-toggle": () =>
-        this._paintScrollSync(this.scrollSync.toggle()),
 
       /* Export */
       "export-toggle": () => this.exports.toggleMenu(),
@@ -163,7 +146,6 @@ class MarkdownEditorApp {
         event.key.toLowerCase() === "z"
       ) {
         event.preventDefault();
-        this._paintZen(this.theme.toggleZen());
       }
     });
   }
@@ -191,9 +173,6 @@ class MarkdownEditorApp {
       if (document.hidden) this.mermaid.observer?.disconnect();
       else this.mermaid.schedule(this.store.renderToken, DOM.el("preview"));
     });
-  }
-  _paintZen(isZen) {
-    DOM.el("zenbtn")?.setAttribute("aria-pressed", String(isZen));
   }
 }
 

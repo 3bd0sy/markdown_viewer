@@ -63,7 +63,6 @@ const TRANSLATIONS = {
     renderingHQ: "جارٍ رسم نسخة عالية الجودة…",
     fsHint: "عجلة: تكبير · سحب: تحريك · 0: ملاءمة · Esc: إغلاق",
     scrollSync: "مزامنة التمرير",
-    zenMode: "وضع التركيز",
   },
   en: {
     appTitle: "✦ Markdown Editor",
@@ -123,6 +122,5 @@ const TRANSLATIONS = {
     renderingHQ: "Rendering high-quality diagram…",
     fsHint: "Scroll: zoom · Drag: pan · 0: fit · Esc: close",
     scrollSync: "Sync scrolling",
-    zenMode: "Zen mode",
   },
 };

@@ -191,13 +191,6 @@ using a normalized ratio. Toggle with the 🔗 button in the toolbar.
 
 ---
 
-## Zen Mode
-
-Hides the toolbar, plabels, and status bar; widens the writing column;
-dims the preview. Toggle with `Ctrl+Shift+Z` or the 🧘 button.
-
----
-
 ## File Structure
 
 assets/js/

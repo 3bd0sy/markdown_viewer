@@ -248,6 +248,10 @@
   z-index: 0;
 }
 
+#app.dark ~ #mm-fs-overlay .mm-fs-backdrop {
+  background: #1e1e2e;
+}
+
 .mm-fs-content {
   z-index: 1;
 }

@@ -87,7 +87,6 @@ Click any feature to open its full documentation.
 | **Keyboard Shortcuts** | Full shortcut map for power users                           |         [📖](docs/shortcuts.md)          |
 | **Autosave**           | Saves to `localStorage` automatically                       |   [📖](docs/architecture.md#autosave)    |
 | **Scroll Sync**        | Synchronize editor and preview scrolling                    |  [📖](docs/architecture.md#scroll-sync)  |
-| **Zen Mode**           | Distraction-free writing                                    |   [📖](docs/architecture.md#zen-mode)    |
 | **Fullscreen Viewer**  | Zoom, pan, and save diagrams as PNG/SVG                     | [📖](docs/diagrams.md#fullscreen-viewer) |
 
 ---

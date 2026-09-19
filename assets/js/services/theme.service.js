@@ -55,15 +55,4 @@ class ThemeService {
     app.classList.toggle("edit-mode", mode === "edit");
     app.classList.toggle("preview-mode", mode === "preview");
   }
-  /** Zen mode hides the toolbar and widens the writing area.
-   *  Not persisted: it is a per-session focus aid, not a
-   *  standing preference like the theme. */
-  toggleZen() {
-    const isZen = DOM.el("app")?.classList.toggle("zen-mode");
-    return !!isZen;
-  }
-
-  get isZen() {
-    return DOM.el("app")?.classList.contains("zen-mode") ?? false;
-  }
 }

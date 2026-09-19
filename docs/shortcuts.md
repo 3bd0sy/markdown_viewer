@@ -45,7 +45,6 @@ Complete reference for all keyboard shortcuts.
 
 | Shortcut               | Action                  |
 | ---------------------- | ----------------------- |
-| `Ctrl` + `Shift` + `Z` | Toggle Zen mode         |
 | `Ctrl` + `Shift` + `D` | Toggle dark/light theme |
 | `Ctrl` + `Shift` + `L` | Switch language         |
 

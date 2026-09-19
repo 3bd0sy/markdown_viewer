@@ -26,18 +26,7 @@ class ScrollSyncController {
     this._applying = false;
     this._detachEditor = null;
     this._detachPreview = null;
-  }
-
-  /** Read the saved on/off state. Call once at boot. */
-  restore() {
-    let enabled = false;
-    try {
-      enabled = localStorage.getItem(ScrollSyncController.STORAGE_KEY) === "1";
-    } catch {
-      /* storage blocked */
-    }
-    if (enabled) this.enable();
-    return enabled;
+    this.enable();
   }
 
   enable() {

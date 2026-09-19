@@ -62,7 +62,7 @@ class MermaidService {
       markdownAutoWrap: true,
       securityLevel: "strict",
       flowchart: { htmlLabels: true, useMaxWidth: true, wrappingWidth: 220 },
-  
+
       themeVariables: {
         ...palette,
         fontSize: "14px",
@@ -251,8 +251,6 @@ class MermaidService {
     svgEl.dataset.mmPadded = "1";
   }
 
-
-
   /** Widen legend badges that mermaid sizes from a stale text metric. */
   static fixBadges(svgEl) {
     const selectors = [
@@ -308,17 +306,5 @@ class MermaidService {
     if (type === "quadrant") pad.right = fullscreen ? 60 : 48;
     MermaidService.padViewBox(svgEl, pad);
     MermaidService.fixBadges(svgEl);
-  }
-
-  /** Zen mode hides the toolbar and widens the writing area.
-   *  Not persisted: it is a per-session focus aid, not a
-   *  standing preference like the theme. */
-  toggleZen() {
-    const isZen = DOM.el("app")?.classList.toggle("zen-mode");
-    return !!isZen;
-  }
-
-  get isZen() {
-    return DOM.el("app")?.classList.contains("zen-mode") ?? false;
   }
 }

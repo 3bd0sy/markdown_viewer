@@ -262,13 +262,6 @@
   background: rgba(59, 130, 246, 0.35);
 }
 
-/* ── Scroll sync toggle ───────────────────────── */
-#syncbtn.active {
-  background: var(--info);
-  color: #fff;
-  border-color: var(--info);
-}
-
 /* ═══════════════════════════════════════════════
    Callouts / Admonitions
    ═══════════════════════════════════════════════ */
