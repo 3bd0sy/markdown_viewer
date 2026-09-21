@@ -1,0 +1,181 @@
+/* ═══════════════════════════════════════════════
+   library.css — Dropdown menu for saved documents
+   ═══════════════════════════════════════════════ */
+
+.lib-menu-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.lib-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  width: 280px;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 0.5px solid var(--bdr);
+  border-radius: 10px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.14);
+  z-index: 40;
+  overflow: hidden;
+  animation: lib-pop 0.12s ease-out;
+}
+
+.lib-menu[hidden] {
+  display: none;
+}
+
+@keyframes lib-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Header ──────────────────────────────────── */
+.lib-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 0.5px solid var(--bdr);
+  background: var(--bg2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt2);
+}
+
+.lib-menu-new {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--info);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.lib-menu-new:hover {
+  background: color-mix(in srgb, var(--info) 12%, transparent);
+}
+
+/* ── List ────────────────────────────────────── */
+.lib-menu-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px;
+  scrollbar-width: thin;
+}
+
+.lib-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.lib-menu-item:hover {
+  background: var(--bg2);
+}
+
+.lib-menu-item.is-active {
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+}
+.lib-menu-item.is-active .lib-menu-item-title {
+  color: var(--info);
+  font-weight: 600;
+}
+
+.lib-menu-item-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lib-menu-item-title {
+  font-size: 13px;
+  color: var(--txt);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.lib-menu-item-meta {
+  font-size: 11px;
+  color: var(--txt2);
+  margin-top: 2px;
+}
+
+.lib-menu-item-del {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--txt2);
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.12s,
+    color 0.12s,
+    background 0.12s;
+}
+.lib-menu-item:hover .lib-menu-item-del {
+  opacity: 1;
+}
+.lib-menu-item-del:hover {
+  color: #e06c75;
+  background: rgba(224, 108, 117, 0.12);
+}
+
+.lib-menu-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--txt2);
+}
+
+/* ── Print ───────────────────────────────────── */
+@media print {
+  .lib-menu-wrap,
+  .lib-menu {
+    display: none !important;
+  }
+}
+
+/* ── Library button icon alignment ──────────── */
+#libbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  line-height: 1;
+}
+
+#libbtn svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  color: inherit;
+  transition: color 0.15s;
+}
+
+#libbtn:hover svg {
+  color: var(--info);
+}

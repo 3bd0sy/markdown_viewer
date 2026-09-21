@@ -37,6 +37,20 @@ class MarkdownEditorApp {
       toc: this.toc,
     });
 
+    /* ═══════════ Library ═══════════ */
+    this.library = new LibraryManager({
+      bus: this.bus,
+      i18n: this.i18n,
+      getEditor: () => DOM.el("editor").value,
+      setEditor: (text) => {
+        DOM.el("editor").value = text;
+        this.store.lastMarkdown = null;
+        this.renderer.render({ force: true });
+      },
+      onOpen: () => {
+        // re-render already triggered by setEditor
+      },
+    });
     this.editor = new EditorController({
       store: this.store,
       bus: this.bus,
@@ -90,7 +104,14 @@ class MarkdownEditorApp {
     this._bindSubscriptions();
     this._bindLifecycle();
 
-    await this.renderer.render();
+    this.library.init();
+    this.library.mount(DOM.el("libbtn"), DOM.el("lib-menu"));
+
+    DOM.el("editor").addEventListener("input", () => {
+      this.library.saveCurrent();
+    });
+
+    await this.renderer.render({ force: true });
     this.math.bindStartup(() => this.math.typeset());
   }
 
@@ -123,6 +144,12 @@ class MarkdownEditorApp {
       "copy-code": (el) => this.codeRunner.copy(el),
       "run-code": (el) => this.codeRunner.run(el),
       "toc-toggle": () => this.toc.toggle(),
+      "toggle-library": () => {
+        // route is bound to the button, but LibraryManager already
+        // handles the click via mount(). This entry exists only to
+        // avoid a "no handler" warning if _bindActions throws on
+        // unknown actions. Behavior: no-op.
+      },
     };
 
     // One listener for the whole app; preview content can be
@@ -138,7 +165,7 @@ class MarkdownEditorApp {
       if (event.key === "Escape") this.exports.closeMenu();
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        this.storage.save();
+        this.library.saveCurrent();
       }
       if (
         (event.ctrlKey || event.metaKey) &&

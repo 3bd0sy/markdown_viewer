@@ -97,4 +97,27 @@ print(fibonacci(10))
 \`\`\`
 
 > Drag an image or a .glb model onto the editor to insert it.
+
+## [F11] Callouts
+:::note
+هذه ملاحظة جانبية للمساعدة.
+:::
+
+:::warning عنوان مخصص
+تحذير يحتوي على قائمة:
+- عنصر أول
+- عنصر ثانٍ
+:::
+
+## [F12] Tabs
+=== "JavaScript"
+    \`\`\`js
+    console.log("Hello");
+    \`\`\`
+
+=== "Python"
+    \`\`\`python
+    print("Hello")
+    \`\`\`
+
 `;

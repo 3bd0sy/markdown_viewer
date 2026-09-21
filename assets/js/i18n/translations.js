@@ -63,6 +63,11 @@ const TRANSLATIONS = {
     renderingHQ: "جارٍ رسم نسخة عالية الجودة…",
     fsHint: "عجلة: تكبير · سحب: تحريك · 0: ملاءمة · Esc: إغلاق",
     scrollSync: "مزامنة التمرير",
+    libraryLabel: "المستندات",
+    libraryEmpty: "لا مستندات محفوظة",
+    newDocument: "مستند جديد",
+    deleteDocument: "حذف هذا المستند؟",
+    toggleLibrary: "المستندات المحفوظة",
   },
   en: {
     appTitle: "✦ Markdown Editor",
@@ -122,5 +127,10 @@ const TRANSLATIONS = {
     renderingHQ: "Rendering high-quality diagram…",
     fsHint: "Scroll: zoom · Drag: pan · 0: fit · Esc: close",
     scrollSync: "Sync scrolling",
+    libraryLabel: "Documents",
+    libraryEmpty: "No saved documents",
+    newDocument: "New document",
+    deleteDocument: "Delete this document?",
+    toggleLibrary: "Saved documents",
   },
 };
