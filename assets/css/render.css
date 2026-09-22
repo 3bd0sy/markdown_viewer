@@ -304,10 +304,12 @@
   margin-bottom: 0;
 }
 
+/* Code blocks inside a callout keep their own chrome. */
 #preview .md-callout-body .code-wrap {
   margin: 8px 0;
 }
 
+/* Per-type palettes (light) */
 #preview .md-callout-note,
 #preview .md-callout-info {
   --co-bar: #0969da;
@@ -337,6 +339,7 @@
   --co-fg: #57606a;
 }
 
+/* Per-type palettes (dark) */
 #app.dark #preview .md-callout-note,
 #app.dark #preview .md-callout-info {
   --co-bg: #0d2a4a;
@@ -405,6 +408,7 @@
 
   overflow-x: auto;
   overflow-y: hidden;
+  /* Hide the horizontal scrollbar while keeping scroll. */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -412,6 +416,7 @@
   display: none;
 }
 
+/* macOS-style traffic-light dots. */
 #preview .md-tabs-nav .code-dots {
   display: inline-flex;
   align-items: center;
@@ -493,6 +498,7 @@
   margin-bottom: 0;
 }
 
+/* Code blocks inside a tab panel lose their outer margin. */
 #preview .md-tab-panel .code-wrap {
   margin: 0;
   border-radius: 6px;
@@ -570,18 +576,62 @@
 }
 
 /* ═══════════════════════════════════════════════
+   Layout — Grid Container
+
+   Rendered by MarkdownParser._renderGrid().
+   Each cell contains one item whose body has been
+   run through the full pipeline (Mermaid, tables,
+   code blocks, math, nested grids, …).
+   ═══════════════════════════════════════════════ */
+
+#preview .md-grid {
+  display: grid;
+  grid-template-columns: var(--md-grid-cols, repeat(2, minmax(0, 1fr)));
+  gap: var(--md-grid-gap, 16px);
+  margin: 16px 0;
+  align-items: start;
+}
+
+/* Each cell. min-width:0 prevents wide content
+   (tables, code) from forcing the track to grow. */
+#preview .md-grid-item {
+  min-width: 0;
+  /* Uncomment to visualize the cell boundaries: */
+  /* background: var(--bg2); */
+  /* padding: 10px 14px; */
+  /* border-radius: 8px; */
+  /* border: 0.5px solid var(--bdr); */
+}
+
+/* Remove double margins at the cell edges. */
+#preview .md-grid-item > *:first-child {
+  margin-top: 0;
+}
+#preview .md-grid-item > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Code blocks inside a cell lose their outer margin. */
+#preview .md-grid-item .code-wrap {
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════
    Print
    ═══════════════════════════════════════════════ */
 @media print {
+  /* ── Callouts: force light, keep the accent bar ── */
   #preview .md-callout {
     border: 1px solid var(--co-bar);
     border-inline-start-width: 4px;
     background: #ffffff !important;
     break-inside: avoid;
+    page-break-inside: avoid;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
+  /* ── Tabs: show every panel sequentially ── */
   #preview .md-tabs-nav {
     display: none !important;
   }
@@ -597,5 +647,15 @@
     font-size: 11px;
     color: #666;
     margin-bottom: 6px;
+  }
+
+  /* ── Grid: keep cells together across page breaks ── */
+  #preview .md-grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  #preview .md-grid-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }

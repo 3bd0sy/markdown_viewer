@@ -9,6 +9,19 @@
    DirectionResolver, which holds one policy for the
    whole document — the only way headings, lists and
    tables can share an edge.
+
+   Grid markers produced by Preprocessors.grids() are
+   resolved against this.gridMap. Each grid item's raw
+   Markdown is re-run through the full DOCX pipeline,
+   so Mermaid, tables, code blocks, callouts, lists and
+   nested grids inside grid cells export as real Word
+   objects — never as flattened text.
+
+   Diagram fences (Mermaid, Plotly) are looked up in
+   this.imageMap by a single shared this.diagramIndex,
+   which WordExporter.captureDiagrams() fills in the same
+   raw-source order this class consumes it in — see the
+   comment on the constructor's diagramIndex field.
    ═══════════════════════════════════════════════ */
 
 class DocxBuilder {
@@ -34,6 +47,9 @@ class DocxBuilder {
     mermaidLbl: "7B2D8B",
     quoteBg: "F0F4F8",
     quoteBar: "2E75B6",
+    plotlyBg: "ECFEFF",
+    plotlyBar: "0891B2",
+    plotlyLbl: "0E7490",
     tableHdr: "2E5496",
     tableAlt: "EEF3FA",
     link: "0563C1",
@@ -88,7 +104,10 @@ class DocxBuilder {
 
   /**
    * @param {object} docx      window.docx namespace
-   * @param {object} imageMap  { [mermaidIndex]: {dataUrl,width,height} }
+   * @param {object} imageMap  { [diagramIndex]: {dataUrl,width,height} }
+   *        one shared index across every diagram type
+   *        (Mermaid, Plotly, …), in raw source order —
+   *        see WordExporter.captureDiagrams()
    * @param {DirectionResolver|boolean} direction
    *        A resolver (preferred), or a boolean for the
    *        legacy "whole document is RTL" call style.
@@ -97,8 +116,22 @@ class DocxBuilder {
     this.d = docx;
     this.imageMap = imageMap;
     this.dir = DocxBuilder._asResolver(direction);
-    this.mermaidIndex = 0;
+    /* One counter for every pre-rendered diagram type
+       (Mermaid, Plotly, …), advancing in document order —
+       must stay a SINGLE counter, not one per type, since
+       WordExporter.captureDiagrams() builds imageMap with
+       one shared index across all diagram fences in the
+       same raw source order. Splitting this back into
+       per-type counters would silently misalign images as
+       soon as a document mixes diagram types. */
+    this.diagramIndex = 0;
     this.contentWidth = DocxBuilder.PAGE.width - DocxBuilder.PAGE.margin * 2;
+    /* Grid definition map for the current scope. Swapped
+       when recursing into grid items so nested markers
+       resolve against their own (local) definitions, then
+       restored via try/finally so sibling/parent markers
+       keep resolving correctly. */
+    this.gridMap = [];
   }
 
   /**
@@ -152,16 +185,24 @@ class DocxBuilder {
 
   async build(markdown) {
     const { Document, Packer } = this.d;
-    this.mermaidIndex = 0;
+    this.diagramIndex = 0;
 
     // Safety net: the exporter should resolve the document
     // first, but a forgotten call must not fall back to
     // per-block guessing.
     if (!this.dir.resolved) this.dir.resolveDocument(markdown);
 
+    // Preprocessors in the same order as MarkdownParser:
+    // footnotes → grids → callouts → tabs.
     let src = Preprocessors.footnotes(markdown);
+
+    const gridResult = Preprocessors.grids(src);
+    src = gridResult.src;
+    this.gridMap = gridResult.grids || [];
+
     src = Preprocessors.callouts(src);
     src = Preprocessors.tabs(src);
+
     const tokens = marked.lexer(src);
     const children = this.processTokens(tokens);
 
@@ -594,12 +635,26 @@ class DocxBuilder {
     const C = DocxBuilder.COLORS;
     const lang = (tok.lang || "").toLowerCase().trim();
     const isMermaid = lang === "mermaid";
-    const barColor = isMermaid ? C.mermaidBar : C.codeBdr;
+    const isPlotly = lang === "plotly";
+    // Any language WordExporter.captureDiagrams() pre-renders
+    // to a PNG. Add new diagram types to BOTH this check and
+    // WordExporter.DIAGRAM_LANGS — never to just one side, or
+    // the shared image index goes out of sync.
+    const isDiagram = isMermaid || isPlotly;
+    const barColor = isMermaid
+      ? C.mermaidBar
+      : isPlotly
+        ? C.plotlyBar
+        : C.codeBdr;
     const elements = [];
 
-    const image = isMermaid ? this.imageMap[this.mermaidIndex++] : null;
+    // One shared counter for every diagram type, incremented
+    // only when we actually see a diagram fence — regular code
+    // blocks never touch it. This is what keeps this index
+    // aligned with WordExporter's single-pass raw-source scan.
+    const image = isDiagram ? this.imageMap[this.diagramIndex++] : null;
 
-    if (isMermaid && image?.dataUrl) {
+    if (isDiagram && image?.dataUrl) {
       try {
         elements.push(
           new Paragraph({
@@ -621,10 +676,14 @@ class DocxBuilder {
       }
     }
 
-    const headerFill = isMermaid ? "F3E8FF" : C.codeHdr;
+    // No image (capture failed, or the export ran without
+    // WordExporter's pre-render step) → fall back to a
+    // labeled source block, same chrome as a regular code
+    // block but tinted per diagram type.
+    const headerFill = isMermaid ? "F3E8FF" : isPlotly ? C.plotlyBg : C.codeHdr;
     const headerChildren = [];
 
-    if (!isMermaid) {
+    if (!isDiagram) {
       headerChildren.push(
         new TextRun({ text: "●", color: C.winRed, size: 18, font: "Arial" }),
         new TextRun({ text: "  ", size: 14 }),
@@ -637,14 +696,16 @@ class DocxBuilder {
 
     const tabLabel = isMermaid
       ? "⬡  Mermaid Diagram"
-      : `  ${lang ? lang.toUpperCase() : "CODE"}  `;
+      : isPlotly
+        ? "📊  Plotly Chart"
+        : `  ${lang ? lang.toUpperCase() : "CODE"}  `;
 
     headerChildren.push(
       new TextRun({
         text: tabLabel,
         bold: true,
         size: 16,
-        color: isMermaid ? C.mermaidLbl : C.codeMuted,
+        color: isMermaid ? C.mermaidLbl : isPlotly ? C.plotlyLbl : C.codeMuted,
         font: DocxBuilder.FONTS.mono,
         shading: { fill: "FFFFFF", type: ShadingType.CLEAR },
       }),
@@ -696,6 +757,19 @@ class DocxBuilder {
               }),
             ],
             ...lineStyle(C.mermaidBg, { last: i === lines.length - 1 }),
+          }),
+        );
+      });
+    } else if (isPlotly) {
+      // The fence body is JSON ({ data, layout }) — syntax-
+      // highlight it as such rather than showing flat mono
+      // text, same as any other language falls back to source.
+      const lines = this.highlightLines(tok.text || "", "json");
+      lines.forEach((runs, i) => {
+        elements.push(
+          new Paragraph({
+            children: runs,
+            ...lineStyle(C.plotlyBg, { last: i === lines.length - 1 }),
           }),
         );
       });
@@ -946,12 +1020,23 @@ class DocxBuilder {
 
   doHtml(tok) {
     const raw = String(tok.text || "");
+    const trimmed = raw.trim();
 
+    // ── Grid marker ──────────────────────────
+    const gridMatch = /^<!--MD-GRID:(\d+)-->$/.exec(trimmed);
+    if (gridMatch) {
+      const gridDef = this.gridMap?.[+gridMatch[1]];
+      return this._doGrid(gridDef);
+    }
+
+    // ── Callout ──────────────────────────────
     const calloutMatch = raw.match(/data-callout="(\w+)"/);
     if (calloutMatch) return this._doCallout(calloutMatch[1], raw);
 
+    // ── Tabs ─────────────────────────────────
     if (/class="md-tabs"/.test(raw)) return this._doTabs(raw);
 
+    // ── Plain HTML fallback ──────────────────
     const text = Utils.decodeHtmlEntities(raw.replace(/<[^>]+>/g, "")).trim();
     if (!text) return null;
 
@@ -961,6 +1046,240 @@ class DocxBuilder {
       spacing: { before: 60, after: 60 },
     });
   }
+
+  /* ═══════════ Grid ═══════════ */
+
+  _doGrid(gridDef) {
+    const {
+      Table,
+      TableRow,
+      TableCell,
+      Paragraph,
+      BorderStyle,
+      WidthType,
+      VerticalAlign,
+      TableLayoutType,
+    } = this.d;
+
+    if (!gridDef || !gridDef.items?.length) return null;
+
+    // ── 1) Column count + per-track widths (sum === contentWidth) ──
+    const { count, widths } = this._parseGridColumns(
+      gridDef.columns,
+      this.contentWidth,
+    );
+
+    // ── 2) Non-visible cell borders (layout table only) ──
+    const noBorder = { style: BorderStyle.NIL, size: 0, color: "FFFFFF" };
+    const cellBorders = {
+      top: noBorder,
+      bottom: noBorder,
+      left: noBorder,
+      right: noBorder,
+      insideHorizontal: noBorder,
+      insideVertical: noBorder,
+    };
+
+    const pushEmptyCell = (row, index) => {
+      row.push(
+        new TableCell({
+          width: { size: widths[index] ?? widths[0], type: WidthType.DXA },
+          borders: cellBorders,
+          verticalAlign: VerticalAlign.TOP,
+          children: [new Paragraph({})],
+        }),
+      );
+    };
+
+    const rows = [];
+    let row = [];
+    let used = 0;
+
+    // Fill any unused tracks in the current row with blank
+    // cells, push the row, and reset for the next one.
+    const flushRow = () => {
+      while (used < count) {
+        pushEmptyCell(row, used);
+        used++;
+      }
+      if (row.length) rows.push(new TableRow({ children: row }));
+      row = [];
+      used = 0;
+    };
+
+    for (const item of gridDef.items) {
+      const span = this._clampSpan(item.span, count);
+
+      // Doesn't fit what's left of the current row → close it
+      // (padding the remainder with blank cells) and start a
+      // fresh one before placing this item.
+      if (used > 0 && used + span > count) {
+        flushRow();
+      }
+
+      const cellWidth = widths
+        .slice(used, used + span)
+        .reduce((sum, w) => sum + w, 0);
+
+      // One bad item must not take down the whole grid — or
+      // the rest of the document. Fall back to an empty cell
+      // and keep going.
+      let children;
+      try {
+        children = this._buildGridItemChildren(item.content);
+      } catch (e) {
+        Logger.warn("docx: grid item failed to process", e);
+        children = [];
+      }
+
+      const cellOpts = {
+        width: { size: cellWidth || widths[used] || 1, type: WidthType.DXA },
+        borders: cellBorders,
+        margins: { top: 100, bottom: 100, left: 140, right: 140 },
+        verticalAlign: VerticalAlign.TOP,
+        children: children.length ? children : [new Paragraph({})],
+      };
+      if (span > 1) cellOpts.columnSpan = span;
+
+      row.push(new TableCell(cellOpts));
+      used += span;
+
+      // Row is exactly full → flush now so the next item
+      // starts a clean row.
+      if (used >= count) flushRow();
+    }
+
+    // Trailing partial row (last item didn't fill the row).
+    if (row.length) flushRow();
+
+    return [
+      new Table({
+        width: { size: this.contentWidth, type: WidthType.DXA },
+        columnWidths: widths,
+        layout: TableLayoutType.FIXED,
+        visuallyRightToLeft: !!this.dir.baseline,
+        borders: cellBorders,
+        rows,
+      }),
+      new Paragraph({ children: [], spacing: { before: 80, after: 120 } }),
+    ];
+  }
+
+  _buildGridItemChildren(rawMarkdown) {
+    const outerGridMap = this.gridMap;
+
+    try {
+      let src = Preprocessors.footnotes(rawMarkdown);
+
+      const gridResult = Preprocessors.grids(src);
+      src = gridResult.src;
+      this.gridMap = gridResult.grids || [];
+
+      src = Preprocessors.callouts(src);
+      src = Preprocessors.tabs(src);
+
+      const tokens = marked.lexer(src);
+      return this.processTokens(tokens);
+    } catch (e) {
+      Logger.warn("docx: grid item failed to process", e);
+      return [
+        new this.d.Paragraph({
+          children: [
+            this.run({
+              text: "⚠ تعذّر عرض محتوى هذا العنصر",
+              italics: true,
+              color: "999999",
+            }),
+          ],
+        }),
+      ];
+    } finally {
+      this.gridMap = outerGridMap;
+    }
+  }
+
+  /**
+   * Parse a columns spec into a track count and per-track
+   * widths that sum EXACTLY to totalWidth (Word is picky
+   * about columnWidths summing to the table width under
+   * TableLayoutType.FIXED — leftover twips from Math.floor
+   * rounding are folded into the last track).
+   *
+   * Accepts:
+   *   3                          → three equal columns
+   *   "repeat(3, ...)"           → three equal columns
+   *   "2fr 1fr"                  → 2/3 and 1/3 of total width
+   *   "1fr 2fr 1fr"              → weighted distribution
+   */
+  _parseGridColumns(spec, totalWidth) {
+    // Integer count
+    if (typeof spec === "number" || /^\d+$/.test(String(spec ?? "").trim())) {
+      const n = Math.max(1, Math.min(parseInt(spec, 10) || 2, 12));
+      return {
+        count: n,
+        widths: this._distributeWidths(totalWidth, Array(n).fill(1)),
+      };
+    }
+
+    const raw = String(spec ?? "").trim();
+
+    // repeat(N, ...) form
+    const repMatch = raw.match(/repeat\(\s*(\d+)/);
+    if (repMatch) {
+      const n = Math.max(1, Math.min(parseInt(repMatch[1], 10), 12));
+      return {
+        count: n,
+        widths: this._distributeWidths(totalWidth, Array(n).fill(1)),
+      };
+    }
+
+    // fr-based track list
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (!parts.length) {
+      return {
+        count: 2,
+        widths: this._distributeWidths(totalWidth, [1, 1]),
+      };
+    }
+
+    const frValues = parts.map((p) => {
+      const m = p.match(/^([\d.]+)fr$/);
+      return m ? parseFloat(m[1]) : 1;
+    });
+
+    return {
+      count: parts.length,
+      widths: this._distributeWidths(totalWidth, frValues),
+    };
+  }
+
+  /**
+   * Distribute totalWidth across `weights` proportionally,
+   * as whole twips, with the rounding remainder folded into
+   * the last track so the sum is always exactly totalWidth.
+   */
+  _distributeWidths(totalWidth, weights) {
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0) || 1;
+    const widths = weights.map((w) =>
+      Math.floor((totalWidth * w) / totalWeight),
+    );
+    const used = widths.reduce((sum, w) => sum + w, 0);
+    const remainder = totalWidth - used;
+    if (widths.length) widths[widths.length - 1] += remainder;
+    return widths;
+  }
+
+  /**
+   * Clamp a span value between 1 and the column count.
+   * Invalid / missing values become 1.
+   */
+  _clampSpan(value, count) {
+    const n = parseInt(value, 10);
+    if (!Number.isFinite(n) || n < 1) return 1;
+    return Math.min(n, count);
+  }
+
+  /* ═══════════ Callout ═══════════ */
 
   _doCallout(type, rawHtml) {
     const { TextRun, ShadingType, BorderStyle } = this.d;
@@ -1040,6 +1359,8 @@ class DocxBuilder {
 
     return elements;
   }
+
+  /* ═══════════ Tabs ═══════════ */
 
   _doTabs(rawHtml) {
     const { TextRun } = this.d;

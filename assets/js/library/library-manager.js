@@ -19,13 +19,20 @@ class LibraryManager {
   static ACTIVE_KEY = "md-editor:active-doc:v1";
   static SAVE_DEBOUNCE = 400;
 
-  constructor({ bus, i18n, getEditor, setEditor, onOpen } = {}) {
+  constructor({
+    bus,
+    i18n,
+    getEditor,
+    setEditor,
+    onOpen,
+    getDefaultContent,
+  } = {}) {
     this.bus = bus || null;
     this.i18n = i18n || null;
     this.getEditor = getEditor || (() => "");
     this.setEditor = setEditor || (() => {});
     this.onOpen = onOpen || (() => {});
-
+    this.getDefaultContent = getDefaultContent || (() => "");
     this.docs = []; // flat array
     this.activeId = null;
     this._saveTimer = null;
@@ -152,10 +159,12 @@ class LibraryManager {
         this.onOpen(next);
       } else {
         // Never leave the user with an empty library
-        const fresh = this._newDoc("Untitled", "");
+        const content = this.getDefaultContent() || "";
+        const title = this._autoTitle(content);
+        const fresh = this._newDoc(title, content);
         this.docs.push(fresh);
-        this.activeId = fresh.id;
-        this.setEditor("");
+        this.setEditor(content);
+        this.onOpen(fresh);
       }
     }
 

@@ -50,6 +50,7 @@ class MarkdownEditorApp {
       onOpen: () => {
         // re-render already triggered by setEditor
       },
+      getDefaultContent: () => DEFAULT_CONTENT,
     });
     this.editor = new EditorController({
       store: this.store,

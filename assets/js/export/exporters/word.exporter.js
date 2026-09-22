@@ -11,6 +11,8 @@ class WordExporter extends BaseExporter {
   static id = "word";
   static extension = "docx";
 
+  static DIAGRAM_LANGS = new Set(["mermaid", "plotly"]);
+
   async run() {
     const docx = await LazyLoader.ensureGlobal("docx", VENDOR.docx);
     if (!docx) throw new Error(this.i18n.t("libraryError"));
@@ -23,21 +25,16 @@ class WordExporter extends BaseExporter {
     Utils.dlBlob(blob, this.filename());
   }
 
-  /**
-   * Render every mermaid fence to a PNG.
-   * @returns {Promise<object>} keyed by diagram order
-   */
   async captureDiagrams() {
-    const sources = marked
+    const tokens = marked
       .lexer(this.markdown)
       .filter(
         (tok) =>
           tok.type === "code" &&
-          (tok.lang || "").toLowerCase().trim() === "mermaid",
-      )
-      .map((tok) => tok.text);
+          WordExporter.DIAGRAM_LANGS.has((tok.lang || "").toLowerCase().trim()),
+      );
 
-    if (!sources.length) return {};
+    if (!tokens.length) return {};
 
     const stage = document.createElement("div");
     stage.className = "offscreen-stage";
@@ -45,17 +42,19 @@ class WordExporter extends BaseExporter {
 
     const imageMap = {};
     try {
-      for (let index = 0; index < sources.length; index++) {
+      for (let index = 0; index < tokens.length; index++) {
+        const tok = tokens[index];
+        const lang = (tok.lang || "").toLowerCase().trim();
         try {
-          const dataUrl = await this._capture(
-            sources[index],
-            stage,
-            imageMap,
-            index,
-          );
-          if (!dataUrl) Logger.warn(`diagram ${index} produced no image`);
+          const dataUrl =
+            lang === "mermaid"
+              ? await this._captureMermaid(tok.text, stage, imageMap, index)
+              : await this._capturePlotly(tok.text, stage, imageMap, index);
+          if (!dataUrl) {
+            Logger.warn(`diagram ${index} (${lang}) produced no image`);
+          }
         } catch (e) {
-          Logger.warn(`diagram ${index} failed to export`, e);
+          Logger.warn(`diagram ${index} (${lang}) failed to export`, e);
         }
         await Utils.yieldToBrowser();
       }
@@ -65,7 +64,7 @@ class WordExporter extends BaseExporter {
     return imageMap;
   }
 
-  async _capture(source, stage, imageMap, index) {
+  async _captureMermaid(source, stage, imageMap, index) {
     // theme:base keeps diagrams legible on a white page;
     // htmlLabels:false produces real SVG text the canvas can draw.
     const svg = await this.ctx.mermaid.renderSource(source, {
@@ -98,6 +97,69 @@ class WordExporter extends BaseExporter {
     if (dataUrl) {
       imageMap[index] = { dataUrl, width: fitted.width, height: fitted.height };
     }
+    stage.innerHTML = "";
+    return dataUrl;
+  }
+
+  async _capturePlotly(source, stage, imageMap, index) {
+    if (typeof Plotly === "undefined") {
+      Logger.warn(`diagram ${index} (plotly): Plotly.js is not loaded`);
+      return null;
+    }
+
+    let spec;
+    try {
+      spec = JSON.parse(source);
+    } catch (e) {
+      Logger.warn(`diagram ${index} (plotly): invalid JSON spec`, e);
+      return null;
+    }
+
+    const width = Math.round(spec.layout?.width) || 640;
+    const height = Math.round(spec.layout?.height) || 400;
+
+    const host = document.createElement("div");
+    stage.appendChild(host);
+
+    let dataUrl = null;
+    try {
+      await Plotly.newPlot(
+        host,
+        spec.data || [],
+        {
+          ...spec.layout,
+          width,
+          height,
+          paper_bgcolor: "#ffffff",
+          plot_bgcolor: "#ffffff",
+        },
+        { staticPlot: true, responsive: false },
+      );
+
+      // 2x for print quality — same convention as the mermaid path.
+      dataUrl = await Plotly.toImage(host, {
+        format: "png",
+        width: width * 2,
+        height: height * 2,
+      });
+
+      if (dataUrl) {
+        const fitted = Utils.fitImageSize(width, height);
+        imageMap[index] = {
+          dataUrl,
+          width: fitted.width,
+          height: fitted.height,
+        };
+      }
+    } finally {
+      try {
+        Plotly.purge(host);
+      } catch (e) {
+        Logger.warn(`diagram ${index} (plotly): purge failed`, e);
+      }
+      host.remove();
+    }
+
     return dataUrl;
   }
 }

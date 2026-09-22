@@ -1,6 +1,14 @@
 /* ═══════════════════════════════════════════════
    preprocessors.js — Source transforms applied
    before marked sees the text.
+
+   Order matters:
+     footnotes → extractMath → grids → callouts → tabs
+
+   Each transform works on raw Markdown text and,
+   where possible, returns content that marked.lexer
+   can consume in a single piece (no blank lines
+   inside generated HTML blocks).
    ═══════════════════════════════════════════════ */
 
 class Preprocessors {
@@ -8,9 +16,11 @@ class Preprocessors {
   static FENCE_RE =
     /^([ \t]{0,3})(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]{0,3}\2[^\n]*$|$)/gm;
 
-  /* ── Fence protection helpers ──────────────── */
+  /* ═══════════════════════════════════════════════
+     Fence protection helpers
+     ═══════════════════════════════════════════════ */
 
-  /** Replace each fenced block with a single-line placeholder. */
+  /** Replace every fenced block with a single-line placeholder. */
   static _maskFences(src) {
     const fences = [];
     const masked = String(src).replace(Preprocessors.FENCE_RE, (m) => {
@@ -38,7 +48,33 @@ class Preprocessors {
     return stripped.replace(/«PRE_(\d+)»/g, (_, i) => pres[+i]);
   }
 
-  /* ── Footnotes ──────────────────────────────── */
+  /**
+   * Collapse newlines outside <pre> blocks into a single space.
+   * Purpose: keep an HTML fragment on one logical line so that
+   * marked.lexer does not split it into several tokens.
+   */
+  static _collapseNewlinesOutsidePre(html) {
+    const pres = [];
+    const PLACEHOLDER = "\u0002PRE_";
+    const END_MARK = "\u0002";
+
+    const masked = String(html).replace(/<pre\b[\s\S]*?<\/pre>/gi, (m) => {
+      const key = `${PLACEHOLDER}${pres.length}${END_MARK}`;
+      pres.push(m);
+      return key;
+    });
+
+    const collapsed = masked.replace(/\s*\n\s*/g, " ");
+
+    return collapsed.replace(
+      new RegExp(`${PLACEHOLDER}(\\d+)${END_MARK}`, "g"),
+      (_, idx) => pres[+idx],
+    );
+  }
+
+  /* ═══════════════════════════════════════════════
+     Footnotes
+     ═══════════════════════════════════════════════ */
 
   static footnotes(src) {
     const defs = new Map();
@@ -48,6 +84,7 @@ class Preprocessors {
       return "";
     });
 
+    // Number each key exactly once — definitions reuse the same number.
     const numbers = new Map();
     let counter = 0;
 
@@ -68,10 +105,11 @@ class Preprocessors {
     for (const [key, value] of defs) {
       const safe = Utils.esc(key);
       const num = numbers.get(key) ?? "?";
+      // Render inline markdown (bold, code, links) inside the footnote body.
       const rendered = marked.parseInline(value);
       out +=
         `<p id="fn-${safe}" class="fn-item">` +
-        `<a href="#fnref-${safe}" class="fn-back" title="عودة للمرجع">↩</a> ` +
+        `<a href="#fnref-${safe}" class="fn-back" title="العودة للمرجع">↩</a> ` +
         `<span class="fn-num">[${num}]</span> ` +
         `<span class="fn-text">${rendered}</span>` +
         `</p>\n`;
@@ -80,8 +118,15 @@ class Preprocessors {
     return out;
   }
 
-  /* ── Math protection ────────────────────────── */
+  /* ═══════════════════════════════════════════════
+     Math protection
+     ═══════════════════════════════════════════════ */
 
+  /**
+   * Replace LaTeX spans with opaque keys so marked cannot
+   * mangle them. Fenced code is skipped, so a `$` inside a
+   * shell snippet stays a `$`.
+   */
   static extractMath(src) {
     const map = Object.create(null);
     let index = 0;
@@ -106,7 +151,7 @@ class Preprocessors {
 
     while ((match = fence.exec(src)) !== null) {
       out += swap(src.slice(cursor, match.index));
-      out += match[0];
+      out += match[0]; // fenced block passes through untouched
       cursor = match.index + match[0].length;
     }
     out += swap(src.slice(cursor));
@@ -114,12 +159,16 @@ class Preprocessors {
     return { src: out, map };
   }
 
+  /** Single pass — the old version scanned the whole string per equation. */
   static restoreMath(html, map) {
     return html.replace(/«MATH_\d+»/g, (key) => map[key] ?? key);
   }
 
-  /* ── Checkbox freeze ────────────────────────── */
+  /* ═══════════════════════════════════════════════
+     Checkbox freeze
+     ═══════════════════════════════════════════════ */
 
+  /** Checkbox inputs in the preview are display-only. */
   static freezeCheckboxes(html) {
     return html.replace(
       /<input type="checkbox"([^>]*)>/gi,
@@ -129,9 +178,11 @@ class Preprocessors {
 
   /* ═══════════════════════════════════════════════
      Callouts / Admonitions
-     :::type optional-title
-     body
-     :::
+
+     Syntax:
+       :::type optional-title
+       body (supports Markdown)
+       :::
      ═══════════════════════════════════════════════ */
 
   static CALLOUT_TYPES = {
@@ -145,10 +196,11 @@ class Preprocessors {
     quote: { label: "Quote", icon: "💬" },
   };
 
-  /* ═══════════════════════════════════════════════
-   Callouts — Line-based state machine
-   ═══════════════════════════════════════════════ */
-
+  /**
+   * Line-based state machine. Runs before marked.lexer.
+   * Emits a single-line <div> per callout so marked.lexer
+   * keeps each callout as one HTML block.
+   */
   static callouts(src) {
     const lines = String(src).split("\n");
     const out = [];
@@ -175,17 +227,16 @@ class Preprocessors {
       const heading = customTitle || spec.label;
       i++;
 
+      // Gather body lines until the closing `:::` or the
+      // start of another recognized callout.
       const bodyLines = [];
-      let closed = false;
       while (i < lines.length) {
         if (CLOSE_RE.test(lines[i])) {
-          closed = true;
           i++;
           break;
         }
         const peek = lines[i].match(TYPE_RE);
         if (peek && Preprocessors.CALLOUT_TYPES[peek[1].toLowerCase()]) {
-          closed = true;
           break;
         }
         bodyLines.push(lines[i++]);
@@ -193,6 +244,7 @@ class Preprocessors {
 
       const body = bodyLines.join("\n").trim();
 
+      // Empty callout — still emit a header-only box.
       if (!body) {
         out.push(
           `<div class="md-callout md-callout-${type}" data-callout="${type}">` +
@@ -213,6 +265,7 @@ class Preprocessors {
         innerHtml = `<p>${Utils.esc(body)}</p>`;
       }
 
+      // Keep the whole block on one logical line for marked.lexer.
       innerHtml = Preprocessors._collapseNewlinesOutsidePre(innerHtml);
 
       out.push(
@@ -229,28 +282,12 @@ class Preprocessors {
     return out.join("\n");
   }
 
-  static _collapseNewlinesOutsidePre(html) {
-    const pres = [];
-    const PLACEHOLDER = "\u0002PRE_";
-    const END_MARK = "\u0002";
-
-    const masked = String(html).replace(/<pre\b[\s\S]*?<\/pre>/gi, (m) => {
-      const key = `${PLACEHOLDER}${pres.length}${END_MARK}`;
-      pres.push(m);
-      return key;
-    });
-
-    const collapsed = masked.replace(/\s*\n\s*/g, " ");
-
-    return collapsed.replace(
-      new RegExp(`${PLACEHOLDER}(\\d+)${END_MARK}`, "g"),
-      (_, idx) => pres[+idx],
-    );
-  }
   /* ═══════════════════════════════════════════════
      Tabs — MkDocs Material style
-     === "Tab Title"
-         indented body
+
+     Syntax:
+       === "Tab Title"
+           indented body (4 spaces or 1 tab)
      ═══════════════════════════════════════════════ */
 
   static tabs(src) {
@@ -273,6 +310,7 @@ class Preprocessors {
 
       const tabs = [];
 
+      // Collect consecutive tab headers and their indented bodies.
       while (i < lines.length) {
         const hm = lines[i].match(/^===[ \t]+["'](.+?)["'][ \t]*$/);
         if (!hm) break;
@@ -300,12 +338,13 @@ class Preprocessors {
 
       if (!tabs.length) continue;
 
+      // Content-derived key so DomDiffer preserves tab state.
       const fingerprint = tabs
         .map((t) => t.title + "\u0000" + t.body)
         .join("\u0001");
       const tabsKey = "tabs-" + Utils.hash(fingerprint);
 
-      // ── Nav with macOS dots ──
+      // macOS-style window dots for the nav bar.
       const dots =
         `<span class="code-dots" aria-hidden="true">` +
         `<span class="dot dot-red"></span>` +
@@ -325,7 +364,6 @@ class Preprocessors {
 
       const nav = dots + `<span class="md-tabs-sep"></span>` + navButtons;
 
-      // ── Panels ──
       const panelsHtml = tabs
         .map((t, idx) => {
           const restored = Preprocessors._restoreFences(t.body, fences);
@@ -347,5 +385,129 @@ class Preprocessors {
     }
 
     return out.join("\n");
+  }
+
+  /* ═══════════════════════════════════════════════
+     Layout Blocks — Grid Container
+     ═══════════════════════════════════════════════ */
+
+  static grids(src) {
+    const map = [];
+    const lines = String(src).split("\n");
+    const out = [];
+    let i = 0;
+
+    const OPEN_ANY = /^:::[ \t]*(\w[\w-]*)(.*)$/;
+    const CLOSE = /^:::[ \t]*$/;
+    const GRID_RE = /^:::[ \t]*grid\b(.*)$/i;
+    const ITEM_RE = /^:::[ \t]*item\b(.*)$/i;
+
+    /** Extract columns / gap / span from the opening line. */
+    const parseOpts = (s) => {
+      const o = {};
+      if (!s) return o;
+
+      const colQ = s.match(/columns\s*=\s*["']([^"']+)["']/i);
+      const colN = s.match(/columns\s*=\s*(\d+)(?!\w)/i);
+      const gap = s.match(/gap\s*=\s*(\d+)/i);
+      const span = s.match(/span\s*=\s*(\d+)/i);
+
+      if (colQ) o.columns = colQ[1].trim();
+      else if (colN) o.columns = parseInt(colN[1], 10);
+
+      if (gap) o.gap = parseInt(gap[1], 10);
+      if (span) o.span = parseInt(span[1], 10);
+      return o;
+    };
+
+    /**
+     * Read lines until the matching `:::` at depth 0.
+     * Depth tracking allows nested containers (callouts, tabs,
+     * nested grids) inside the body without ending early.
+     */
+    const readUntilClose = (startDepth = 1) => {
+      const buf = [];
+      let depth = startDepth;
+      while (i < lines.length) {
+        const line = lines[i];
+
+        if (CLOSE.test(line)) {
+          depth--;
+          i++;
+          if (depth === 0) return buf;
+          buf.push(line);
+          continue;
+        }
+
+        if (OPEN_ANY.test(line)) depth++;
+
+        buf.push(line);
+        i++;
+      }
+      return buf; // unclosed — return whatever was collected
+    };
+
+    /** Parse one complete grid block and return its marker. */
+    const readGrid = () => {
+      const gm = lines[i].match(GRID_RE);
+      const opts = parseOpts(gm[1] || "");
+      i++; // consume the `:::grid` line
+
+      const items = [];
+      while (i < lines.length) {
+        const line = lines[i];
+
+        if (CLOSE.test(line)) {
+          i++; // consume the grid's closing `:::`
+          break;
+        }
+
+        const im = line.match(ITEM_RE);
+        if (im) {
+          const itemOpts = parseOpts(im[1] || "");
+          i++; // consume the `:::item` line
+          const body = readUntilClose(1);
+          items.push({
+            span: itemOpts.span || 1,
+            content: body.join("\n").trim(),
+          });
+          continue;
+        }
+
+        // Content outside an explicit `:::item` — treat it as
+        // an implicit item, so hand-written grids without item
+        // wrappers still produce a cell.
+        const implicitBody = [];
+        while (
+          i < lines.length &&
+          !CLOSE.test(lines[i]) &&
+          !ITEM_RE.test(lines[i])
+        ) {
+          implicitBody.push(lines[i]);
+          i++;
+        }
+        const trimmed = implicitBody.join("\n").trim();
+        if (trimmed) {
+          items.push({ span: 1, content: trimmed });
+        }
+      }
+
+      const id = map.length;
+      map.push({ columns: opts.columns, gap: opts.gap, items });
+      return `<!--MD-GRID:${id}-->`;
+    };
+
+    while (i < lines.length) {
+      if (GRID_RE.test(lines[i])) {
+        out.push("");
+        out.push(readGrid());
+        out.push("");
+        continue;
+      }
+      out.push(lines[i]);
+      i++;
+    }
+
+    return { src: out.join("\n"), grids: map };
   }
 }
