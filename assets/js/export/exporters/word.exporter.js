@@ -18,11 +18,34 @@ class WordExporter extends BaseExporter {
     if (!docx) throw new Error(this.i18n.t("libraryError"));
 
     DOM.flashStatus(this.i18n.t("preparingDiagrams"), 0);
-    const imageMap = await this.captureDiagrams();
+
+    const [diagramMap, mapImages] = await Promise.all([
+      this.captureDiagrams(),
+      this._captureMaps(),
+    ]);
+
+    const imageMap = Object.assign(Object.create(null), diagramMap, {
+      map: mapImages,
+    });
+
+    // const imageMap = await this.captureDiagrams();
 
     const builder = new DocxBuilder(docx, imageMap, this.i18n.isRtl);
     const blob = await builder.build(this.markdown);
     Utils.dlBlob(blob, this.filename());
+  }
+
+  async _captureMaps() {
+    if (typeof MapService === "undefined") {
+      Logger.warn("MapService not loaded — maps will not be embedded in Word");
+      return [];
+    }
+    try {
+      return await MapService.collectFromMarkdown(this.markdown);
+    } catch (e) {
+      Logger.warn("word: map capture failed", e);
+      return [];
+    }
   }
 
   async captureDiagrams() {

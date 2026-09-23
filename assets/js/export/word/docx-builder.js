@@ -186,7 +186,7 @@ class DocxBuilder {
   async build(markdown) {
     const { Document, Packer } = this.d;
     this.diagramIndex = 0;
-
+    this.mapIndex = 0;
     // Safety net: the exporter should resolve the document
     // first, but a forgotten call must not fall back to
     // per-block guessing.
@@ -634,6 +634,10 @@ class DocxBuilder {
 
     const C = DocxBuilder.COLORS;
     const lang = (tok.lang || "").toLowerCase().trim();
+    if (lang === "map") {
+      return this._doMap(tok);
+    }
+
     const isMermaid = lang === "mermaid";
     const isPlotly = lang === "plotly";
     // Any language WordExporter.captureDiagrams() pre-renders
@@ -790,6 +794,52 @@ class DocxBuilder {
     );
 
     return elements;
+  }
+
+  /**
+   * Render a ```map block as an embedded image.
+   *
+   * Map images are pre-fetched by MapService and passed
+   * through imageMap.map in document order. If no image
+   * is available, fall back to a plain caption.
+   */
+  _doMap(tok) {
+    const { Paragraph, TextRun, ImageRun, AlignmentType } = this.d;
+
+    const index = this.mapIndex++;
+    const img = this.imageMap?.map?.[index] || null;
+
+    /* ── 1) Image available → embed it ──────── */
+    if (img?.dataUrl) {
+      try {
+        return [
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: Utils.dataUrlToUint8Array(img.dataUrl),
+                transformation: {
+                  width: img.width || 600,
+                  height: img.height || 400,
+                },
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 120, after: 120 },
+          }),
+        ];
+      } catch (e) {
+        Logger.warn("docx: map image embed failed", e);
+      }
+    }
+
+    /* ── 2) No image → text fallback ─────────── */
+    const text = `📍 Map: ${String(tok.text || "").trim()}`;
+    return [
+      new Paragraph({
+        children: [new TextRun({ text, size: 20, color: "666666" })],
+        spacing: { before: 100, after: 100 },
+      }),
+    ];
   }
 
   /* ═══════════ Blockquote ═══════════ */

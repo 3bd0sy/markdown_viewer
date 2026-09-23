@@ -659,3 +659,114 @@
     page-break-inside: avoid;
   }
 }
+
+/* ═══════════════════════════════════════════════
+   Map block — layer toolbar
+   ═══════════════════════════════════════════════ */
+
+.map-host {
+  position: relative;
+  width: 100%;
+}
+
+.map-host .embed-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+
+/* ── Floating toolbar (bottom-right) ─────────── */
+.map-toolbar {
+  position: absolute;
+  inset-block-end: 10px;
+  inset-inline-end: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 0.5px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+#app.dark .map-toolbar {
+  background: rgba(26, 27, 30, 0.94);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Layer buttons ───────────────────────────── */
+.map-layers {
+  display: flex;
+  gap: 4px;
+}
+
+.map-layer-btn {
+  appearance: none;
+  border: 1px solid var(--bdr, #e0e3e7);
+  background: var(--bg, #fff);
+  color: var(--txt2, #666);
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+  white-space: nowrap;
+}
+
+.map-layer-btn:hover {
+  background: var(--bg2, #f5f5f5);
+  color: var(--txt, #111);
+}
+
+.map-layer-btn.is-active {
+  background: var(--info, #2563eb);
+  color: #fff;
+  border-color: var(--info, #2563eb);
+}
+
+/* ── Copy coordinates button ─────────────────── */
+.map-copy-btn {
+  appearance: none;
+  border: 1px solid var(--bdr, #e0e3e7);
+  background: var(--bg, #fff);
+  color: var(--txt2, #666);
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.map-copy-btn:hover {
+  background: var(--bg2, #f5f5f5);
+  color: var(--txt, #111);
+}
+
+.map-copy-btn.is-copied {
+  background: #1a7f37;
+  color: #fff;
+  border-color: #1a7f37;
+}
+
+/* ── Hide toolbar in print ───────────────────── */
+@media print {
+  .map-toolbar {
+    display: none !important;
+  }
+}

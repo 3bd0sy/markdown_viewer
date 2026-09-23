@@ -68,6 +68,10 @@ const TRANSLATIONS = {
     newDocument: "مستند جديد",
     deleteDocument: "حذف هذا المستند؟",
     toggleLibrary: "المستندات المحفوظة",
+    mapLayerStandard: "قياسي",
+    mapLayerHumanitarian: "إنساني",
+    copyCoords: "نسخ الإحداثيات",
+    coordsCopied: "✓ تم النسخ",
   },
   en: {
     appTitle: "✦ Markdown Editor",
@@ -132,5 +136,9 @@ const TRANSLATIONS = {
     newDocument: "New document",
     deleteDocument: "Delete this document?",
     toggleLibrary: "Saved documents",
+    mapLayerStandard: "Standard",
+    mapLayerHumanitarian: "Humanitarian",
+    copyCoords: "Copy coordinates",
+    coordsCopied: "✓ Copied",
   },
 };

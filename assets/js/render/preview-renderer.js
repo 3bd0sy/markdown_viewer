@@ -21,6 +21,7 @@ class PreviewRenderer {
     this.toc = toc;
     this._modelViewerRequested = false;
     this._bindTabClicks();
+    this._bindMapActions();
   }
 
   _bindTabClicks() {
@@ -64,6 +65,62 @@ class PreviewRenderer {
       next.focus();
       next.click();
       event.preventDefault();
+    });
+  }
+
+  _bindMapActions() {
+    /* ── Layer switching ─────────────────────── */
+    this.previewEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".map-layer-btn");
+      if (!btn) return;
+
+      const host = btn.closest(".map-host");
+      if (!host) return;
+
+      const layer = btn.dataset.mapLayer;
+      const iframe = host.querySelector("iframe");
+      if (!iframe) return;
+
+      /* Rebuild the iframe src with the new layer. */
+      const lat = host.dataset.lat;
+      const lng = host.dataset.lng;
+      const zoom = parseFloat(host.dataset.zoom) || 13;
+
+      const span = 0.05 / (zoom / 10);
+      const bbox =
+        `${parseFloat(lng) - span},${parseFloat(lat) - span},` +
+        `${parseFloat(lng) + span},${parseFloat(lat) + span}`;
+
+      iframe.src =
+        `https://www.openstreetmap.org/export/embed.html` +
+        `?bbox=${bbox}&amp;layer=${layer}`;
+
+      host.dataset.layer = layer;
+
+      /* Update button states. */
+      host.querySelectorAll(".map-layer-btn").forEach((b) => {
+        b.classList.toggle("is-active", b.dataset.mapLayer === layer);
+      });
+    });
+
+    /* ── Copy coordinates ────────────────────── */
+    this.previewEl.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".map-copy-btn");
+      if (!btn) return;
+
+      const text = btn.dataset.mapCopy;
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = btn.textContent;
+        btn.textContent = "✓";
+        btn.classList.add("is-copied");
+        setTimeout(() => {
+          btn.textContent = original;
+          btn.classList.remove("is-copied");
+        }, 1500);
+      } catch {
+        Logger.warn("map: copy failed");
+      }
     });
   }
 
