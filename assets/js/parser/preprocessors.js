@@ -296,6 +296,156 @@ class Preprocessors {
     return Preprocessors._restoreFences(expanded, fences);
   }
 
+  /**
+   * Build a DOCX-friendly tab representation without rendering
+   * the tab bodies to HTML.
+   */
+  static tabsForDocx(src) {
+    const { masked, fences } = Preprocessors._maskFences(src);
+    const lines = String(masked).split("\n");
+    const out = [];
+    const tabs = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const startM = lines[i].match(/^===[ \t]+["'](.+?)["'][ \t]*$/);
+
+      if (!startM) {
+        out.push(lines[i++]);
+        continue;
+      }
+
+      const group = [];
+
+      // Collect one consecutive tab group.
+      while (i < lines.length) {
+        const headerM = lines[i].match(/^===[ \t]+["'](.+?)["'][ \t]*$/);
+
+        if (!headerM) break;
+
+        const title = headerM[1];
+        i++;
+
+        const body = [];
+
+        while (i < lines.length) {
+          const line = lines[i];
+
+          if (line.trim() === "") {
+            body.push("");
+            i++;
+            continue;
+          }
+
+          if (/^( {4}|\t)/.test(line)) {
+            body.push(line.replace(/^( {4}|\t)/, ""));
+            i++;
+            continue;
+          }
+
+          break;
+        }
+
+        while (body.length && body[body.length - 1] === "") {
+          body.pop();
+        }
+
+        group.push({
+          title,
+          body: Preprocessors._restoreFences(body.join("\n"), fences),
+        });
+      }
+
+      const id = tabs.length;
+
+      tabs.push({
+        tabs: group,
+      });
+
+      out.push(`<!--MD-TABS:${id}-->`);
+    }
+
+    return {
+      src: Preprocessors._restoreFences(out.join("\n"), fences),
+      tabs,
+    };
+  }
+
+  /**
+   * Prepare the complete source used by the DOCX renderer.
+   * Preview preprocessing remains separate.
+   */
+  static prepareForDocx(src) {
+    let text = Preprocessors.footnotes(src);
+
+    const gridResult = Preprocessors.grids(text);
+    text = gridResult.src;
+
+    text = Preprocessors.callouts(text);
+
+    const tabResult = Preprocessors.tabsForDocx(text);
+
+    return {
+      src: tabResult.src,
+      grids: gridResult.grids || [],
+      tabs: tabResult.tabs || [],
+    };
+  }
+
+  /**
+   * Collect diagram fences in the same recursive order used by
+   * DocxBuilder, including diagrams inside tabs and grids.
+   */
+  static collectDocxDiagramTokens(src, diagramLangs) {
+    const result = [];
+
+    const scan = (prepared) => {
+      const tokens = marked.lexer(prepared.src);
+
+      for (const tok of tokens) {
+        if (tok.type === "code") {
+          const lang = (tok.lang || "").toLowerCase().trim();
+
+          if (diagramLangs.has(lang)) {
+            result.push(tok);
+          }
+
+          continue;
+        }
+
+        if (tok.type !== "html") continue;
+
+        const raw = String(tok.text || "").trim();
+
+        const gridMatch = /^<!--MD-GRID:(\d+)-->$/.exec(raw);
+
+        if (gridMatch) {
+          const gridDef = prepared.grids?.[+gridMatch[1]];
+
+          for (const item of gridDef?.items || []) {
+            scan(Preprocessors.prepareForDocx(item.content));
+          }
+
+          continue;
+        }
+
+        const tabsMatch = /^<!--MD-TABS:(\d+)-->$/.exec(raw);
+
+        if (tabsMatch) {
+          const tabDef = prepared.tabs?.[+tabsMatch[1]];
+
+          for (const tab of tabDef?.tabs || []) {
+            scan(Preprocessors.prepareForDocx(tab.body));
+          }
+        }
+      }
+    };
+
+    scan(Preprocessors.prepareForDocx(src));
+
+    return result;
+  }
+
   static _expandTabs(chunk, fences) {
     const lines = chunk.split("\n");
     const out = [];

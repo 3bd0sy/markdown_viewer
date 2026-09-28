@@ -72,6 +72,9 @@ const TRANSLATIONS = {
     mapLayerHumanitarian: "إنساني",
     copyCoords: "نسخ الإحداثيات",
     coordsCopied: "✓ تم النسخ",
+    tabsChooseOne: "اختر أحد الخيارات",
+    tabsCountOne: "خيار واحد",
+    tabsCountMany: "%n خيارات",
   },
   en: {
     appTitle: "✦ Markdown Editor",
@@ -140,5 +143,8 @@ const TRANSLATIONS = {
     mapLayerHumanitarian: "Humanitarian",
     copyCoords: "Copy coordinates",
     coordsCopied: "✓ Copied",
+    tabsChooseOne: "Choose one of",
+    tabsCountOne: "1 option",
+    tabsCountMany: "%n options",
   },
 };

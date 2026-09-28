@@ -1,16 +1,14 @@
 /* ═══════════════════════════════════════════════
    word.exporter.js — DOCX export.
 
-   Diagrams are re-rendered from the markdown source
-   rather than scraped from the preview, so lazily
-   drawn (or off-screen) diagrams still make it into
-   the file, and the order always matches the document.
+   Diagrams are re-rendered from the Markdown source
+   rather than scraped from the preview, including
+   diagrams nested inside DOCX tabs and grids.
    ═══════════════════════════════════════════════ */
 
 class WordExporter extends BaseExporter {
   static id = "word";
   static extension = "docx";
-
   static DIAGRAM_LANGS = new Set(["mermaid", "plotly"]);
 
   async run() {
@@ -28,9 +26,9 @@ class WordExporter extends BaseExporter {
       map: mapImages,
     });
 
-    // const imageMap = await this.captureDiagrams();
+    // Pass the I18n service so DOCX chrome uses the active UI language.
+    const builder = new DocxBuilder(docx, imageMap, this.i18n.isRtl, this.i18n);
 
-    const builder = new DocxBuilder(docx, imageMap, this.i18n.isRtl);
     const blob = await builder.build(this.markdown);
     Utils.dlBlob(blob, this.filename());
   }
@@ -40,6 +38,7 @@ class WordExporter extends BaseExporter {
       Logger.warn("MapService not loaded — maps will not be embedded in Word");
       return [];
     }
+
     try {
       return await MapService.collectFromMarkdown(this.markdown);
     } catch (e) {
@@ -48,15 +47,59 @@ class WordExporter extends BaseExporter {
     }
   }
 
-  async captureDiagrams() {
-    const tokens = marked
-      .lexer(this.markdown)
-      .filter(
-        (tok) =>
-          tok.type === "code" &&
-          WordExporter.DIAGRAM_LANGS.has((tok.lang || "").toLowerCase().trim()),
-      );
+  /**
+   * Collect diagram code fences in the same recursive document order
+   * used by DocxBuilder: top-level content → grids/tabs at their marker
+   * position → nested grids/tabs recursively.
+   */
+  _collectDiagramTokens(markdown) {
+    const result = [];
 
+    const visit = (source) => {
+      const prepared = Preprocessors.prepareForDocx(source);
+      const tokens = marked.lexer(prepared.src);
+
+      for (const tok of tokens) {
+        if (tok.type === "code") {
+          const lang = (tok.lang || "").toLowerCase().trim();
+
+          if (WordExporter.DIAGRAM_LANGS.has(lang)) {
+            result.push(tok);
+          }
+          continue;
+        }
+
+        if (tok.type !== "html") continue;
+
+        const raw = String(tok.text || "").trim();
+
+        const gridMatch = /^<!--MD-GRID:(\d+)-->$/.exec(raw);
+        if (gridMatch) {
+          const gridDef = prepared.grids?.[+gridMatch[1]];
+
+          for (const item of gridDef?.items || []) {
+            visit(item.content);
+          }
+          continue;
+        }
+
+        const tabsMatch = /^<!--MD-TABS:(\d+)-->$/.exec(raw);
+        if (tabsMatch) {
+          const tabDef = prepared.tabs?.[+tabsMatch[1]];
+
+          for (const tab of tabDef?.tabs || []) {
+            visit(tab.body);
+          }
+        }
+      }
+    };
+
+    visit(markdown);
+    return result;
+  }
+
+  async captureDiagrams() {
+    const tokens = this._collectDiagramTokens(this.markdown);
     if (!tokens.length) return {};
 
     const stage = document.createElement("div");
@@ -64,32 +107,37 @@ class WordExporter extends BaseExporter {
     document.body.appendChild(stage);
 
     const imageMap = {};
+
     try {
       for (let index = 0; index < tokens.length; index++) {
         const tok = tokens[index];
         const lang = (tok.lang || "").toLowerCase().trim();
+
         try {
           const dataUrl =
             lang === "mermaid"
               ? await this._captureMermaid(tok.text, stage, imageMap, index)
               : await this._capturePlotly(tok.text, stage, imageMap, index);
+
           if (!dataUrl) {
             Logger.warn(`diagram ${index} (${lang}) produced no image`);
           }
         } catch (e) {
           Logger.warn(`diagram ${index} (${lang}) failed to export`, e);
         }
+
         await Utils.yieldToBrowser();
       }
     } finally {
       stage.remove();
     }
+
     return imageMap;
   }
 
   async _captureMermaid(source, stage, imageMap, index) {
     // theme:base keeps diagrams legible on a white page;
-    // htmlLabels:false produces real SVG text the canvas can draw.
+    // htmlLabels:false produces SVG text the canvas can draw.
     const svg = await this.ctx.mermaid.renderSource(source, {
       theme: "base",
       htmlLabels: false,
@@ -103,7 +151,7 @@ class WordExporter extends BaseExporter {
     const { width, height } = Utils.getSvgDimensions(svgEl);
     const fitted = Utils.fitImageSize(width, height);
 
-    // 2x for print quality
+    // Render at 2x for print quality.
     if (width > 0) svgEl.setAttribute("width", width * 2);
     if (height > 0) svgEl.setAttribute("height", height * 2);
 
@@ -117,9 +165,15 @@ class WordExporter extends BaseExporter {
     svgEl.insertBefore(background, svgEl.firstChild);
 
     const dataUrl = await Utils.svgToPngDataUrl(svgEl);
+
     if (dataUrl) {
-      imageMap[index] = { dataUrl, width: fitted.width, height: fitted.height };
+      imageMap[index] = {
+        dataUrl,
+        width: fitted.width,
+        height: fitted.height,
+      };
     }
+
     stage.innerHTML = "";
     return dataUrl;
   }
@@ -140,11 +194,11 @@ class WordExporter extends BaseExporter {
 
     const width = Math.round(spec.layout?.width) || 640;
     const height = Math.round(spec.layout?.height) || 400;
-
     const host = document.createElement("div");
     stage.appendChild(host);
 
     let dataUrl = null;
+
     try {
       await Plotly.newPlot(
         host,
@@ -159,7 +213,7 @@ class WordExporter extends BaseExporter {
         { staticPlot: true, responsive: false },
       );
 
-      // 2x for print quality — same convention as the mermaid path.
+      // Render at 2x for print quality.
       dataUrl = await Plotly.toImage(host, {
         format: "png",
         width: width * 2,

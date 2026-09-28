@@ -105,11 +105,11 @@ dependency order via `<script defer>`.
 ```
 
 markdown-editor/
-├── index.html ← Single entry point
+├── index.html                                   ← Single entry point
 ├── README.md
-├── prompt.md ← AI prompt for content generation
-├── docs/ ← Per-feature documentation
-│ ├── architecture.md ← this file
+├── prompt.md                                    ← AI prompt for content generation
+├── docs/                                        ← Per-feature documentation
+│ ├── architecture.md                            ← this file
 │ ├── callouts.md
 │ ├── tabs.md
 │ ├── grid.md
@@ -124,87 +124,102 @@ markdown-editor/
 │ ├── tables-lists.md
 │ ├── rtl-ltr.md
 │ ├── export.md
+│ ├── word-export-bidi.md
 │ └── shortcuts.md
 ├── tools/
 │ └── download-vendors.sh
 └── assets/
 ├── css/
-│ ├── main.css ← Variables + reset + layout
+│ ├── main.css                                   ← Variables + reset + layout
 │ ├── toolbar.css
 │ ├── editor.css
-│ ├── preview.css ← Base preview styles
+│ ├── preview.css                                ← Base preview styles
 │ ├── mermaid.css
 │ ├── code.css
 │ ├── stats.css
-│ ├── library.css ← Library dropdown
-│ └── render.css ← Callouts, tabs, grids, footnotes
+│ ├── library.css                                ← Library dropdown
+│ └── render.css                                 ← Callouts, tabs, grids, footnotes
 ├── vendor/
 │ ├── marked.min.js
 │ ├── highlight.min.js
 │ ├── mermaid.min.js
 │ ├── mathjax/
-│ ├── plotly.min.js ← lazy
-│ ├── docx.min.js ← lazy
-│ ├── pptxgen.min.js ← lazy
-│ └── model-viewer.min.js ← lazy
+│ ├── plotly.min.js                              ← lazy
+│ ├── docx.min.js                                ← lazy
+│ ├── pptxgen.min.js                             ← lazy
+│ └── model-viewer.min.js                        ← lazy
 └── js/
 ├── core/
-│ ├── logger.js ← Logger — level-gated output
-│ ├── utils.js ← Utils — hash, SVG, blob, esc/attr
-│ ├── event-bus.js ← EventBus + Events constants
-│ ├── dom.js ← DOM cache + event delegation
-│ ├── store.js ← Shared state + render tokens
-│ └── lazy-loader.js ← LazyLoader — on-demand scripts
+│ ├── logger.js                                  ← Logger — level-gated output
+│ ├── utils.js                                   ← Utils — hash, SVG, blob, esc/attr
+│ ├── event-bus.js                               ← EventBus + Events constants
+│ ├── dom.js                                     ← DOM cache + event delegation
+│ ├── store.js                                   ← Shared state + render tokens
+│ └── lazy-loader.js                             ← LazyLoader — on-demand scripts
 │
 ├── i18n/
-│ ├── translations.js ← TRANSLATIONS
+│ ├── translations.js                            ← TRANSLATIONS
 │ └── i18n.js ← I18n
 │
 ├── content/
-│ └── default-document.js ← DEFAULT_CONTENT (welcome doc)
+│ └── default-document.js                        ← DEFAULT_CONTENT (welcome doc)
 │
 ├── services/
-│ ├── theme.service.js ← ThemeService
-│ ├── storage.service.js ← StorageService (legacy)
-│ ├── mermaid.service.js ← MermaidService (queue + observer)
-│ ├── plotly.service.js ← PlotlyService
-│ └── math.service.js ← MathService
+│ ├── theme.service.js                           ← ThemeService
+│ ├── storage.service.js                         ← StorageService (legacy)
+│ ├── mermaid.service.js                         ← MermaidService (queue + observer)
+│ ├── plotly.service.js                          ← PlotlyService
+│ └── math.service.js                            ← MathService
 │
 ├── library/ ← Document library
-│ └── library-manager.js ← LibraryManager
+│ └── library-manager.js                         ← LibraryManager
 │
 ├── parser/
-│ ├── highlighter.js ← Highlighter (hljs wrapper)
-│ ├── preprocessors.js ← Preprocessors (all transforms)
-│ ├── block-registry.js ← BlockRegistry + BaseBlock
+│ ├── highlighter.js                             ← Highlighter (hljs wrapper)
+│ ├── preprocessors.js                           ← Preprocessors (all transforms)
+│ ├── block-registry.js                          ← BlockRegistry + BaseBlock
 │ ├── blocks/
 │ │ ├── mermaid.block.js
 │ │ ├── plotly.block.js
 │ │ ├── map.block.js
 │ │ ├── video.block.js
 │ │ ├── model3d.block.js
-│ │ └── code.block.js ← also the fallback
-│ └── markdown-parser.js ← MarkdownParser
+│ │ └── code.block.js                            ← also the fallback
+│ └── markdown-parser.js                         ← MarkdownParser
 │
 ├── render/
-│ ├── dom-differ.js ← DomDiffer (data-key reuse)
-│ ├── toc-builder.js ← TocBuilder
-│ └── preview-renderer.js ← PreviewRenderer
+│ ├── dom-differ.js                              ← DomDiffer (data-key reuse)
+│ ├── toc-builder.js                             ← TocBuilder
+│ └── preview-renderer.js                        ← PreviewRenderer
 │
 ├── editor/
-│ ├── format-commands.js ← FormatCommands
-│ ├── editor-controller.js ← EditorController
-│ ├── drag-drop.js ← DragDropHandler
-│ └── code-runner.js ← CodeRunner (sandboxed iframe)
+│ ├── format-commands.js                         ← FormatCommands
+│ ├── editor-controller.js                       ← EditorController
+│ ├── drag-drop.js                               ← DragDropHandler
+│ └── code-runner.js                             ← CodeRunner (sandboxed iframe)
 │
 ├── viewer/
-│ ├── fullscreen-viewer.js ← FullscreenViewer
-│ └── diagram-exporter.js ← DiagramExporter (PNG/SVG)
+│ ├── fullscreen-viewer.js                       ← FullscreenViewer
+│ └── diagram-exporter.js                        ← DiagramExporter (PNG/SVG)
 │
 ├── export/
 │ ├── word/
-│ │ ├── direction-resolver.js ← DirectionResolver
-│ │ └── docx-builder.js ← DocxBuilder
+│ │ ├── direction-resolver.js                    ← DirectionResolver
+│ │ ├── docx-theme.js                            ← DocxTheme
+│ │ ├── docx-text-utils.js                       ← DocxTextUtils
+│ │ ├── docx-context.js                          ← DocxContext
+│ │ ├── docx-document.js                         ← DocxDocument
+│ │ └── docx-builder.js                          ← DocxBuilder (Minimized Controller)
+│ │ └── renderers/                               ← Component Renderers
+│ │    ├── docx-inline-renderer.js
+│ │    ├── docx-basic-renderer.js
+│ │    ├── docx-code-renderer.js
+│ │    ├── docx-table-renderer.js
+│ │    ├── docx-map-renderer.js
+│ │    ├── docx-grid-renderer.js
+│ │    ├── docx-callout-renderer.js
+│ │    ├── docx-tabs-renderer.js
+│ │    └── docx-token-renderer.js
 │ ├── exporters/
 │ │ ├── base.exporter.js
 │ │ ├── markdown.exporter.js
@@ -212,9 +227,9 @@ markdown-editor/
 │ │ ├── word.exporter.js
 │ │ ├── pdf.exporter.js
 │ │ └── pptx.exporter.js
-│ └── export-manager.js ← ExportManager
+│ └── export-manager.js                          ← ExportManager
 │
-└── app.js ← MarkdownEditorApp (composition root)
+└── app.js                                       ← MarkdownEditorApp (composition root)
 
 ```
 
