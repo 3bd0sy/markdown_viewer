@@ -138,11 +138,15 @@ class WordExporter extends BaseExporter {
   async _captureMermaid(source, stage, imageMap, index) {
     // theme:base keeps diagrams legible on a white page;
     // htmlLabels:false produces SVG text the canvas can draw.
-    const svg = await this.ctx.mermaid.renderSource(source, {
-      theme: "base",
-      htmlLabels: false,
-      flowchart: { htmlLabels: false, useMaxWidth: false },
-    });
+    const svg = await this.ctx.mermaid.renderSource(
+      source,
+      {
+        theme: "base",
+        htmlLabels: false,
+        flowchart: { htmlLabels: false, useMaxWidth: false },
+      },
+      true,
+    );
 
     stage.innerHTML = svg;
     const svgEl = stage.querySelector("svg");

@@ -115,10 +115,36 @@ class MermaidService {
    * Render one source string to SVG markup.
    * `overrides` are merged over the base config and
    * reverted before the lock is released.
+   * `forceLight` forces the light palette (used by Word/PDF exporters).
    */
-  async renderSource(source, overrides = null) {
+  async renderSource(source, overrides = null, forceLight = false) {
     return this.withLock(async () => {
+      const isDark = forceLight ? false : this.store.isDark;
+      const palette = isDark
+        ? MermaidService.PALETTE.dark
+        : MermaidService.PALETTE.light;
       const base = this.baseConfig;
+      base.theme = isDark ? "dark" : "base";
+      base.themeVariables = {
+        ...palette,
+        fontSize: "14px",
+        xyChart: {
+          backgroundColor: "transparent",
+          plotColorPalette: isDark
+            ? "#60a5fa, #34d399, #f472b6, #fbbf24"
+            : "#2563eb, #059669, #db2777, #d97706",
+          titleColor: palette.primaryTextColor,
+          xAxisLabelColor: palette.primaryTextColor,
+          xAxisTitleColor: palette.primaryTextColor,
+          xAxisTickColor: palette.lineColor,
+          xAxisLineColor: palette.lineColor,
+          yAxisLabelColor: palette.primaryTextColor,
+          yAxisTitleColor: palette.primaryTextColor,
+          yAxisTickColor: palette.lineColor,
+          yAxisLineColor: palette.lineColor,
+        },
+      };
+
       if (overrides) mermaid.initialize({ ...base, ...overrides });
 
       const id = `mmr-${this.seq++}`; // never reused: no id collisions
@@ -131,7 +157,7 @@ class MermaidService {
       } finally {
         document.getElementById(id)?.remove();
         document.getElementById(`d${id}`)?.remove();
-        if (overrides) mermaid.initialize(base);
+        if (overrides || forceLight) mermaid.initialize(this.baseConfig);
       }
     });
   }
