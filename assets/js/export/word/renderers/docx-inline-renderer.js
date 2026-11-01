@@ -109,6 +109,219 @@ class DocxInlineRenderer {
     });
   }
 
+  static readBraceGroup(source, offset = 0) {
+    if (!source || source[offset] !== "{") return null;
+    let depth = 0;
+
+    for (let i = offset; i < source.length; i++) {
+      const ch = source[i];
+      if (ch === "{") depth += 1;
+      else if (ch === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          return {
+            value: source.slice(offset + 1, i),
+            rest: source.slice(i + 1),
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  static decodeLatexToken(token) {
+    const map = {
+      alpha: "α",
+      beta: "β",
+      gamma: "γ",
+      delta: "δ",
+      epsilon: "ε",
+      theta: "θ",
+      lambda: "λ",
+      mu: "μ",
+      pi: "π",
+      sigma: "σ",
+      omega: "ω",
+      Omega: "Ω",
+      Phi: "Φ",
+      sum: "∑",
+      prod: "∏",
+      int: "∫",
+      lim: "lim",
+      infty: "∞",
+      cdot: "⋅",
+      times: "×",
+      pm: "±",
+      neq: "≠",
+      approx: "≈",
+      ldots: "…",
+      cdots: "⋯",
+      dots: "…",
+      sqrt: "√",
+      left: "",
+      right: "",
+      mathbb: null,
+      mathcal: null,
+      mathit: null,
+    };
+
+    return map[token] ?? null;
+  }
+
+  static parseLatexMathNode(expression, docxLib) {
+    const nodes = DocxMathParser.parseSequence(expression, docxLib);
+    if (!nodes.length) return null;
+    return nodes.length === 1 ? nodes[0] : nodes;
+  }
+
+  static parseLatexMathSequence(expression, docxLib) {
+    return DocxMathParser.parseSequence(expression, docxLib);
+  }
+
+  static createMathNode(latexText, docxLib) {
+    return DocxMathParser.createMathNode(latexText, docxLib);
+  }
+
+  parseMathAwareText(rawText, inherited = {}) {
+    const text = String(rawText ?? "");
+    const pattern = /«MATH_[^»]+»/g;
+    const mathMap = this.ctx.imageMap?.math || Object.create(null);
+    const runs = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        runs.push(this.runs({ text: text.slice(lastIndex, match.index), ...inherited }));
+      }
+
+      const mathKey = match[0];
+      const entry = mathMap[mathKey];
+      if (!entry) {
+        throw new DocxMathConversionError(`Unresolved Word Math placeholder ${mathKey}.`, mathKey);
+      }
+
+      const expression = typeof entry === "string" ? entry : entry.text;
+      if (!expression) {
+        throw new DocxMathConversionError(`Word Math placeholder ${mathKey} has no LaTeX source.`, mathKey);
+      }
+
+      const mathNode = DocxInlineRenderer.createMathNode(expression, this.d);
+      if (!mathNode) {
+        throw new DocxMathConversionError(`LaTeX conversion produced no Word Math node for ${mathKey}.`, expression);
+      }
+      this.ctx.resolvedMathKeys?.add(mathKey);
+      runs.push(mathNode);
+      lastIndex = pattern.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      runs.push(this.runs({ text: text.slice(lastIndex), ...inherited }));
+    }
+    return runs.flat(Infinity);
+  }
+
+  imageRun({ src, alt = "", title = "", width = "", height = "" }, inherited = {}) {
+    const { ImageRun, ExternalHyperlink } = this.d;
+    const source = String(src ?? "");
+    const isInlineSvg = source.startsWith("svg:");
+    const safeSource = isInlineSvg ? "" : DocxMediaUtils.normalizeImageSource(source);
+    const key = isInlineSvg ? source : DocxMediaUtils.imageKey(safeSource || source);
+    const image = isInlineSvg
+      ? this.ctx.imageMap?.inlineSvgs?.[key]
+      : this.ctx.imageMap?.images?.[key];
+
+    if (image?.dataUrl && typeof ImageRun === "function") {
+      try {
+        const maxWidth = Math.max(1, Math.floor((this.ctx.contentWidth || DOCX_THEME.page.width) / 15));
+        const transformation = DocxMediaUtils.fitDimensions(image, width, height, maxWidth, 600);
+        return new ImageRun({
+          data: Utils.dataUrlToUint8Array(image.dataUrl),
+          transformation,
+          altText: {
+            name: title || alt || "Image",
+            description: alt || title || "",
+            title: title || "",
+          },
+        });
+      } catch (error) {
+        Logger.warn("docx: embedded image could not be created", error);
+      }
+    }
+
+    const label = alt || title || (safeSource ? "image" : "unsupported image");
+    const fallback = this.run({
+      text: `[Image: ${label}]`,
+      italics: true,
+      color: "888888",
+      ...inherited,
+    });
+    const href = DocxMediaUtils.safeLink(safeSource);
+    return href && ExternalHyperlink
+      ? new ExternalHyperlink({ link: href, children: [fallback] })
+      : fallback;
+  }
+
+  renderHtmlSegments(segments, inherited = {}) {
+    const { TextRun, ExternalHyperlink } = this.d;
+    const output = [];
+
+    for (const segment of segments || []) {
+      if (segment.type === "text") {
+        output.push(...this.parseMathAwareText(segment.text, inherited));
+      } else if (segment.type === "break") {
+        output.push(new TextRun({ break: 1 }));
+      } else if (segment.type === "image") {
+        output.push(this.imageRun(segment, inherited));
+      } else if (segment.type === "svg") {
+        const key = DocxMediaUtils.svgKey(segment.markup);
+        const image = this.ctx.imageMap?.inlineSvgs?.[key];
+        output.push(image?.dataUrl
+          ? this.imageRun({ src: key, alt: segment.alt })
+          : this.run({ text: `[Image: ${segment.alt || "SVG image"}]`, italics: true, color: "888888", ...inherited }));
+      } else if (segment.type === "container-marker") {
+        output.push(this.run({ text: `[${segment.marker}]`, ...inherited }));
+      } else if (segment.type === "link") {
+        const children = this.renderHtmlSegments(segment.children, inherited);
+        const href = DocxMediaUtils.safeLink(segment.href);
+        output.push(href && ExternalHyperlink
+          ? new ExternalHyperlink({ link: href, children })
+          : children);
+      } else if (segment.type === "media") {
+        if (segment.poster?.src) output.push(this.imageRun(segment.poster, inherited));
+        const href = DocxMediaUtils.safeLink(segment.src);
+        const label = segment.title || segment.src || (segment.kind === "audio" ? "audio file" : "video file");
+        if (href && ExternalHyperlink) {
+          output.push(new ExternalHyperlink({
+            link: href,
+            children: [this.run({ text: `[${segment.kind === "audio" ? "Audio" : "Video"}: ${label}]`, ...inherited })],
+          }));
+        } else if (label) {
+          output.push(this.run({ text: `[${segment.kind === "audio" ? "Audio" : "Video"}: ${label}]`, ...inherited }));
+        } else {
+          output.push(...this.renderHtmlSegments(segment.children, inherited));
+        }
+      }
+    }
+    return output.flat(Infinity);
+  }
+
+  mediaLinkParagraph(kind, source, label = "") {
+    const { ExternalHyperlink } = this.d;
+    const href = DocxMediaUtils.safeLink(source);
+    const text = label || source || `${kind} file`;
+    const child = this.run({ text: `[${kind}: ${text}]`, color: DOCX_THEME.colors.link });
+    const children = href && ExternalHyperlink
+      ? [new ExternalHyperlink({ link: href, children: [child] })]
+      : [child];
+    return this.paragraphAuto(text, {
+      blockType: "paragraph",
+      children,
+      spacing: { before: 60, after: 80 },
+    });
+  }
+
   parseInline(tokens, inherited = {}) {
     if (!tokens?.length) return [];
 
@@ -119,11 +332,11 @@ class DocxInlineRenderer {
     for (const tok of tokens) {
       switch (tok.type) {
         case "text":
-        case "escape":
-          runs.push(
-            this.runs({ text: tok.text ?? tok.raw ?? "", ...inherited }),
-          );
+        case "escape": {
+          const rawText = tok.text ?? tok.raw ?? "";
+          runs.push(this.parseMathAwareText(rawText, inherited));
           break;
+        }
 
         case "softbreak":
           runs.push(this.run({ text: " ", ...inherited }));
@@ -180,21 +393,16 @@ class DocxInlineRenderer {
         }
 
         case "image":
-          runs.push(
-            this.run({
-              text: `[Image: ${tok.text || tok.href || ""}]`,
-              italics: true,
-              color: "888888",
-              ...inherited,
-            }),
-          );
+          runs.push(this.imageRun({
+            src: tok.href || tok.src,
+            alt: tok.text || "",
+            title: tok.title || "",
+          }, inherited));
           break;
 
         case "html": {
-          const stripped = String(tok.text || "")
-            .replace(/<[^>]+>/g, "")
-            .trim();
-          if (stripped) runs.push(this.run({ text: stripped, ...inherited }));
+          const segments = DocxMediaUtils.parseHtmlFragment(tok.text || tok.raw || "");
+          runs.push(this.renderHtmlSegments(segments, inherited));
           break;
         }
 

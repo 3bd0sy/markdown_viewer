@@ -64,9 +64,15 @@ This means:
 
 ---
 
-## Print / Word Export
+## Word Export
 
-Math is rendered as **MathJax SVG** and embedded directly in Word/PDF
-exports as images. See [export.md](export.md).
+Word export converts the supported LaTeX subset to editable native Word Math
+(OMML), including fractions, binomial coefficients, roots, scripts, common
+operators (including `\\mid`, `\\nmid`, `\\top`, `\\bot`, closed contour
+integrals, and common relation/arrow symbols), and matrix environments. This is
+a supported subset rather than a complete LaTeX engine: unsupported commands
+stop the export with a diagnostic instead of being silently dropped. The browser
+preview and PDF path continue to use MathJax. See the [Word export support
+guide](word-export-support.md) for the full command list and known limitations.
 
 [← Back to README](../README.md)

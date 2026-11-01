@@ -29,10 +29,8 @@
 class DocxContext {
   /**
    * @param {object} docx      window.docx namespace
-   * @param {object} imageMap  { [diagramIndex]: {dataUrl,width,height}, map: [...] }
-   *        one shared index across every diagram type
-   *        (Mermaid, Plotly, …), in raw source order —
-   *        see WordExporter.captureDiagrams()
+   * @param {object} imageMap  Captured diagram indices plus map, math,
+   *        images (source-keyed), and inlineSvgs (markup-keyed) assets.
    * @param {DirectionResolver|boolean} direction
    * @param {object|null} i18n
    */
@@ -46,6 +44,7 @@ class DocxContext {
        (Mermaid, Plotly, …), advancing in document order. */
     this.diagramIndex = 0;
     this.mapIndex = 0;
+    this.resolvedMathKeys = new Set();
 
     this.contentWidth = DOCX_THEME.page.width - DOCX_THEME.page.margin * 2;
 
@@ -108,6 +107,7 @@ class DocxContext {
   resetForBuild() {
     this.diagramIndex = 0;
     this.mapIndex = 0;
+    this.resolvedMathKeys.clear();
   }
 
   /** i18n lookup with a hard fallback — never throws. */

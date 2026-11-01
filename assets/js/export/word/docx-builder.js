@@ -48,10 +48,8 @@
 class DocxBuilder {
   /**
    * @param {object} docx      window.docx namespace
-   * @param {object} imageMap  { [diagramIndex]: {dataUrl,width,height}, map: [...] }
-   *        one shared index across every diagram type
-   *        (Mermaid, Plotly, …), in raw source order —
-   *        see WordExporter.captureDiagrams()
+   * @param {object} imageMap  Captured diagram indices plus map, math,
+   *        images (source-keyed), and inlineSvgs (markup-keyed) assets.
    * @param {DirectionResolver|boolean} direction
    *        A resolver (preferred), or a boolean for the
    *        legacy "whole document is RTL" call style.
@@ -84,6 +82,15 @@ class DocxBuilder {
 
     const tokens = marked.lexer(prepared.src);
     const children = this.tokens.renderTokens(tokens);
+
+    for (const key of Object.keys(this.context.imageMap?.math || {})) {
+      if (!this.context.resolvedMathKeys.has(key)) {
+        throw new DocxMathConversionError(
+          `Word Math placeholder ${key} was not rendered into the document.`,
+          key,
+        );
+      }
+    }
 
     return this.document.pack(children);
   }

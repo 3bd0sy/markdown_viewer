@@ -5,22 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Markdown Editor</title>
 
-    <!-- MathJax config must precede the library -->
+    <!-- MathJax must be the full bundle; the configured tex-svg bundle
+         lazily requests extension files and breaks on missing packages. -->
     <script>
-      window.MathJax = {
-        tex: {
-          inlineMath: [
-            ["$", "$"],
-            ["\\(", "\\)"],
-          ],
-          displayMath: [
-            ["$$", "$$"],
-            ["\\[", "\\]"],
-          ],
+      window.MathJax = window.MathJax || {};
+      window.MathJax.tex = Object.assign({}, window.MathJax.tex, {
+        inlineMath: [
+          ["$", "$"],
+          ["\\(", "\\)"],
+        ],
+        displayMath: [
+          ["$$", "$$"],
+          ["\\[", "\\]"],
+        ],
+        packages: {
+          "[+]": ["ams", "newcommand", "boldsymbol", "mathtools", "physics"],
         },
-        startup: { typeset: false },
-      };
+      });
     </script>
+    <script
+      async
+      id="MathJax-script"
+      src="assets/vendor/mathjax/tex-svg-full.js"
+    ></script>
 
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="assets/vendor/highlight-atom-dark.min.css" />
@@ -320,12 +327,6 @@
     <script defer src="assets/vendor/marked.min.js"></script>
     <script defer src="assets/vendor/highlight.min.js"></script>
     <script defer src="assets/vendor/mermaid.min.js"></script>
-    <script
-      async
-      id="MathJax-script"
-      src="assets/vendor/mathjax/tex-chtml.js"
-    ></script>
-
     <!-- ═══════════════ APP — dependency order ═══════════════ -->
     <!-- core -->
     <script defer src="assets/js/core/logger.js"></script>
@@ -389,6 +390,8 @@
     <script defer src="assets/js/export/word/docx-document.js"></script>
 
     <!-- Word export: renderers -->
+    <script defer src="assets/js/export/word/docx-math-parser.js"></script>
+    <script defer src="assets/js/export/word/docx-media-utils.js"></script>
     <script
       defer
       src="assets/js/export/word/renderers/docx-inline-renderer.js"

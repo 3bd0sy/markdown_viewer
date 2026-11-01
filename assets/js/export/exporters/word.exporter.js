@@ -16,14 +16,21 @@ class WordExporter extends BaseExporter {
     if (!docx) throw new Error(this.i18n.t("libraryError"));
 
     DOM.flashStatus(this.i18n.t("preparingDiagrams"), 0);
+    const fullMathMap = this._collectMathMaps(this.markdown);
+    const imageSources = this._collectImageSources(this.markdown);
 
-    const [diagramMap, mapImages] = await Promise.all([
+    const [diagramMap, mapImages, mathImages, capturedImages] = await Promise.all([
       this.captureDiagrams(),
       this._captureMaps(),
+      this._captureMath(fullMathMap),
+      this._captureImages(imageSources),
     ]);
 
     const imageMap = Object.assign(Object.create(null), diagramMap, {
       map: mapImages,
+      math: mathImages,
+      images: capturedImages.images,
+      inlineSvgs: capturedImages.inlineSvgs,
     });
 
     // Pass the I18n service so DOCX chrome uses the active UI language.
@@ -45,6 +52,46 @@ class WordExporter extends BaseExporter {
       Logger.warn("word: map capture failed", e);
       return [];
     }
+  }
+
+  /**
+   * Collect every Math placeholder from the document tree,
+   * including formulas hidden inside nested grids, tabs, and
+   * callout bodies that are re-processed in separate DOCX passes.
+   */
+  _collectMathMaps(markdown) {
+    const result = Object.create(null);
+
+    const visit = (source) => {
+      const prepared = Preprocessors.prepareForDocx(source);
+      if (prepared?.math) Object.assign(result, prepared.math);
+
+      const tokens = marked.lexer(prepared.src);
+      for (const tok of tokens) {
+        if (tok.type !== "html") continue;
+
+        const raw = String(tok.text || "").trim();
+        const gridMatch = /^<!--MD-GRID:(\d+)-->$/.exec(raw);
+        if (gridMatch) {
+          const gridDef = prepared.grids?.[+gridMatch[1]];
+          for (const item of gridDef?.items || []) {
+            visit(item.content);
+          }
+          continue;
+        }
+
+        const tabsMatch = /^<!--MD-TABS:(\d+)-->$/.exec(raw);
+        if (tabsMatch) {
+          const tabDef = prepared.tabs?.[+tabsMatch[1]];
+          for (const tab of tabDef?.tabs || []) {
+            visit(tab.body);
+          }
+        }
+      }
+    };
+
+    visit(markdown);
+    return result;
   }
 
   /**
@@ -242,5 +289,139 @@ class WordExporter extends BaseExporter {
     }
 
     return dataUrl;
+  }
+
+  /** Collect Markdown and HTML image sources through nested DOCX containers. */
+  _collectImageSources(markdown) {
+    const images = new Map();
+    const inlineSvgs = new Map();
+    const visitedSources = new Set();
+
+    const collectHtml = (html, prepared) => {
+      const segments = DocxMediaUtils.parseHtmlFragment(html);
+      DocxMediaUtils.collectSegments(segments, images, inlineSvgs);
+
+      const visitMarkers = (items) => {
+        for (const item of items || []) {
+          if (item.type === "container-marker") {
+            const gridMatch = /^MD-GRID:(\d+)$/.exec(item.marker);
+            if (gridMatch) {
+              for (const gridItem of prepared.grids?.[+gridMatch[1]]?.items || []) visit(gridItem.content);
+            }
+            const tabsMatch = /^MD-TABS:(\d+)$/.exec(item.marker);
+            if (tabsMatch) {
+              for (const tab of prepared.tabs?.[+tabsMatch[1]]?.tabs || []) visit(tab.body);
+            }
+          }
+          if (item.children) visitMarkers(item.children);
+        }
+      };
+      visitMarkers(segments);
+    };
+
+    const scanInline = (tokens, prepared) => {
+      for (const token of tokens || []) {
+        if (token.type === "image") {
+          DocxMediaUtils.addImageSource(token.href || token.src, images);
+        } else if (token.type === "html") {
+          collectHtml(token.text || token.raw || "", prepared);
+        }
+        if (token.tokens) scanInline(token.tokens, prepared);
+        if (token.items) {
+          for (const item of token.items) scanInline(item.tokens, prepared);
+        }
+      }
+    };
+
+    const visit = (source) => {
+      const markdownSource = String(source ?? "");
+      if (visitedSources.has(markdownSource)) return;
+      visitedSources.add(markdownSource);
+      const prepared = Preprocessors.prepareForDocx(markdownSource);
+      const tokens = marked.lexer(prepared.src);
+
+      for (const token of tokens || []) {
+        if (token.type === "html") {
+          const raw = String(token.text || "");
+          collectHtml(raw, prepared);
+          const trimmed = raw.trim();
+          const gridMatch = /^<!--MD-GRID:(\d+)-->$/.exec(trimmed);
+          if (gridMatch) {
+            for (const item of prepared.grids?.[+gridMatch[1]]?.items || []) visit(item.content);
+            continue;
+          }
+          const tabsMatch = /^<!--MD-TABS:(\d+)-->$/.exec(trimmed);
+          if (tabsMatch) {
+            for (const tab of prepared.tabs?.[+tabsMatch[1]]?.tabs || []) visit(tab.body);
+          }
+          continue;
+        }
+
+        if (token.type === "table") {
+          for (const cell of token.header || []) scanInline(cell.tokens, prepared);
+          for (const row of token.rows || []) for (const cell of row) scanInline(cell.tokens, prepared);
+          continue;
+        }
+        if (token.type !== "code") scanInline(token.tokens, prepared);
+      }
+    };
+
+    visit(markdown);
+    return { images, inlineSvgs };
+  }
+
+  async _captureImages({ images, inlineSvgs }) {
+    const captured = {
+      images: Object.create(null),
+      inlineSvgs: Object.create(null),
+    };
+    const jobs = [
+      ...[...images.entries()].map(([key, source]) => ({ key, source, kind: "image" })),
+      ...[...inlineSvgs.entries()].map(([key, source]) => ({ key, source, kind: "svg" })),
+    ];
+
+    if (jobs.length > DocxMediaUtils.MAX_IMAGES_PER_DOCUMENT) {
+      Logger.warn(
+        `word: document has ${jobs.length} image assets; only the first ${DocxMediaUtils.MAX_IMAGES_PER_DOCUMENT} will be embedded`,
+      );
+    }
+
+    const limitedJobs = jobs.slice(0, DocxMediaUtils.MAX_IMAGES_PER_DOCUMENT);
+    let next = 0;
+    const worker = async () => {
+      while (next < limitedJobs.length) {
+        const job = limitedJobs[next++];
+        try {
+          const image = job.kind === "svg"
+            ? await DocxMediaUtils.rasterizeSvg(job.source)
+            : await DocxMediaUtils.rasterizeImage(job.source);
+          captured[job.kind === "svg" ? "inlineSvgs" : "images"][job.key] = image;
+        } catch (error) {
+          Logger.warn(`word: image was not embedded (${job.kind === "svg" ? "inline SVG" : job.source})`, error);
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(3, limitedJobs.length) }, worker));
+    return captured;
+  }
+
+  async _captureMath(mathMap) {
+    if (Object.keys(mathMap).length === 0) return {};
+
+    const imageMap = {};
+
+    for (const key in mathMap) {
+      const source = String(mathMap[key] ?? "").trim();
+      const normalized = source
+        .replace(/^\${1,2}|\${1,2}$/g, "")
+        .trim();
+
+      // Export as a native Word equation instead of PNG. This keeps the
+      // formula editable in Word and avoids huge rasterized images.
+      imageMap[key] = { text: normalized || source };
+    }
+
+    return imageMap;
   }
 }

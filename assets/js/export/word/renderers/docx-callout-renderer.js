@@ -1,17 +1,16 @@
 /* ═══════════════════════════════════════════════
    docx-callout-renderer.js — Admonition-style callouts
    (note/tip/warning/danger/quote) rendered as a tinted,
-   side-bordered block. The body text is extracted from
-   the already-rendered HTML rather than re-parsed as
-   Markdown — callouts do not currently support nested
-   Markdown constructs, so this renderer (unlike Grid and
-   Tabs) doesn't need a renderTokens callback.
+   side-bordered block. Its already-rendered HTML body is
+   parsed into text/media segments; grid and tab markers
+   recurse through the shared token renderer.
    ═══════════════════════════════════════════════ */
 
 class DocxCalloutRenderer {
-  constructor({ context, inline }) {
+  constructor({ context, inline, renderTokens = null }) {
     this.ctx = context;
     this.inline = inline;
+    this.renderTokens = renderTokens;
     this.d = context.d;
   }
 
@@ -33,15 +32,18 @@ class DocxCalloutRenderer {
     const titleMatch = rawHtml.match(/class="md-callout-lbl">([^<]+)</);
     const title = titleMatch ? titleMatch[1] : type.toUpperCase();
 
-    const bodyMatch = rawHtml.match(
-      /<div class="md-callout-body">([\s\S]*?)<\/div>\s*<\/div>\s*$/,
-    );
-    const inner = bodyMatch ? bodyMatch[1] : "";
-
-    const bodyText = inner
-      .replace(/<\/(p|li|h[1-6]|div)>/gi, "\n")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
+    const inner = DocxMediaUtils.extractCalloutBody(rawHtml);
+    const bodySegments = DocxMediaUtils.parseHtmlFragment(inner);
+    const bodyText = bodySegments
+      .map((segment) => {
+        if (segment.type === "break") return "\n";
+        if (segment.type === "text") return segment.text;
+        if (segment.type === "image" || segment.type === "svg") return segment.alt || "image";
+        if (segment.type === "media") return segment.title || segment.src || segment.kind;
+        if (segment.type === "link") return segment.children.map((child) => child.text || child.alt || "").join("");
+        return "";
+      })
+      .join("")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
 
@@ -60,16 +62,16 @@ class DocxCalloutRenderer {
       this.inline.paragraphAuto(title, {
         blockType: "blockquote",
         inherited: isRtl,
-        children: [
-          new this.inline.runs({
-            text: title,
+        children: this.inline.parseInline(
+          [{ type: "text", text: title }],
+          {
             bold: true,
             size: 18,
             color: p.fg,
             font: DOCX_THEME.fonts.body,
             rightToLeft: isRtl,
-          }),
-        ],
+          },
+        ),
         shading: { fill: p.bg, type: ShadingType.CLEAR },
         border: borderSpec,
         spacing: { before: 140, after: 0 },
@@ -77,18 +79,43 @@ class DocxCalloutRenderer {
       }),
     );
 
-    const blocks = bodyText.split(/\n\n+/);
-    blocks.forEach((block, i) => {
+    const bodyBlocks = [];
+    let currentBlock = [];
+    const flushBlock = () => {
+      if (currentBlock.length) bodyBlocks.push(currentBlock);
+      currentBlock = [];
+    };
+
+    for (const segment of bodySegments) {
+      if (segment.type === "container-marker") {
+        flushBlock();
+        const match = /^(MD-GRID|MD-TABS):(\d+)$/.exec(segment.marker);
+        const rendered = match && this.renderTokens
+          ? this.renderTokens([{ type: "html", text: `<!--${segment.marker}-->` }])
+          : [];
+        if (rendered?.length) elements.push(...rendered);
+        else currentBlock.push({ type: "text", text: `[${segment.marker}]` });
+      } else if (segment.type === "break") {
+        flushBlock();
+      } else {
+        currentBlock.push(segment);
+      }
+    }
+    flushBlock();
+
+    bodyBlocks.forEach((segments, index) => {
+      const text = segments
+        .map((segment) => segment.type === "text" ? segment.text : segment.alt || segment.src || "")
+        .join(" ")
+        .trim();
       elements.push(
-        this.inline.paragraphAuto(block, {
+        this.inline.paragraphAuto(text, {
           blockType: "blockquote",
           inherited: isRtl,
-          children: [
-            new this.inline.runs({ text: block, size: 22, rightToLeft: isRtl }),
-          ],
+          children: this.inline.renderHtmlSegments(segments, { size: 22, rightToLeft: isRtl }),
           shading: { fill: p.bg, type: ShadingType.CLEAR },
           border: borderSpec,
-          spacing: { before: 0, after: i === blocks.length - 1 ? 180 : 80 },
+          spacing: { before: 0, after: index === bodyBlocks.length - 1 ? 180 : 80 },
           indent,
         }),
       );

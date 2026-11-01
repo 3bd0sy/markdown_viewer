@@ -171,13 +171,16 @@ class PreviewRenderer {
       `swap: ${stats.reused} reused, ${stats.created} new, ${stats.dropped} dropped`,
     );
 
-    // Reused nodes keep their old labels until this runs
-    this.i18n.apply(this.previewEl);
+    const previewEl = this.previewEl;
 
-    this.mermaid.schedule(token, this.previewEl);
-    this.plotly.renderAll(this.previewEl);
-    this.toc.build(this.previewEl);
-    this.math.typeset(this.previewEl);
+
+    // Reused nodes keep their old labels until this runs
+    this.i18n.apply(previewEl);
+
+    this.mermaid.schedule(token, previewEl);
+    this.plotly.renderAll(previewEl);
+    this.toc.build(previewEl);
+    this.math.typeset(previewEl);
     this._ensureModelViewer();
     this._updateStats(markdown);
 

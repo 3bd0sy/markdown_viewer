@@ -15,14 +15,21 @@ class MathService {
 
   /** Typeset the preview once the current frame settles. */
   typeset(previewEl = DOM.el("preview")) {
-    if (!previewEl || !this.ready || this._queued) return;
+    const livePreview = previewEl && previewEl.isConnected ? previewEl : DOM.el("preview");
+    if (!livePreview || !this.ready || this._queued) return;
     this._queued = true;
 
     requestAnimationFrame(async () => {
+      const target = livePreview;
+      if (!target || !target.isConnected) {
+        this._queued = false;
+        return;
+      }
       this._queued = false;
       try {
-        window.MathJax.typesetClear?.([previewEl]);
-        await window.MathJax.typesetPromise([previewEl]);
+        window.MathJax.typesetClear?.([target]);
+        await window.MathJax.startup?.promise;
+        await window.MathJax.typesetPromise([target]);
       } catch (e) {
         Logger.debug("typeset failed", e);
       }
@@ -42,11 +49,27 @@ class MathService {
 
   /** Bind to the async MathJax script so the first pass is not missed. */
   bindStartup(onReady) {
-    const script = DOM.el("MathJax-script");
+    let fired = false;
+
     const fire = () => {
-      window.MathJax?.startup?.promise?.then(onReady)?.catch(() => {});
+      if (fired) return;
+      if (!window.MathJax?.startup?.promise?.then) return;
+      fired = true;
+      window.MathJax.startup.promise
+        .then(() => onReady?.())
+        .catch(() => { });
     };
-    if (script) script.addEventListener("load", fire);
-    if (window.MathJax?.startup?.promise) fire();
+
+    const script = DOM.el("MathJax-script");
+    if (script) script.addEventListener("load", fire, { once: true });
+
+    const poll = setInterval(() => {
+      if (window.MathJax?.startup?.promise?.then) {
+        clearInterval(poll);
+        fire();
+      }
+    }, 100);
+
+    setTimeout(() => clearInterval(poll), 30000);
   }
 }

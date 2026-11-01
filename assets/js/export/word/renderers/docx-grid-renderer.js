@@ -109,6 +109,7 @@ class DocxGridRenderer {
         const usableWidth = cellWidth - cellMargins.left - cellMargins.right;
         children = this.renderItemChildren(item.content, usableWidth);
       } catch (e) {
+        if (e?.code === "DOCX_MATH_CONVERSION") throw e;
         Logger.warn("docx: grid item failed to process", e);
         children = [];
       }
@@ -176,6 +177,7 @@ class DocxGridRenderer {
         },
       );
     } catch (e) {
+      if (e?.code === "DOCX_MATH_CONVERSION") throw e;
       Logger.warn("docx: grid item failed to process", e);
       return [
         new this.d.Paragraph({

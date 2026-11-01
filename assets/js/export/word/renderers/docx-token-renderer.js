@@ -29,7 +29,11 @@ class DocxTokenRenderer {
     this.code = new DocxCodeRenderer(context);
     this.table = new DocxTableRenderer({ context, inline });
     this.map = new DocxMapRenderer(context);
-    this.callout = new DocxCalloutRenderer({ context, inline });
+    this.callout = new DocxCalloutRenderer({
+      context,
+      inline,
+      renderTokens: (tokens) => this.renderTokens(tokens),
+    });
 
     this.grid = new DocxGridRenderer({
       context,
@@ -52,7 +56,8 @@ class DocxTokenRenderer {
       try {
         result = this.renderToken(tok);
       } catch (e) {
-        // One bad token must not abort the document
+        if (e?.code === "DOCX_MATH_CONVERSION") throw e;
+        // Non-math token failures retain the document's best-effort policy.
         Logger.warn(`docx: token "${tok.type}" failed`, e);
         continue;
       }
@@ -84,7 +89,10 @@ class DocxTokenRenderer {
         // before DocxCodeRenderer ever sees the token — see
         // the note at the top of docx-code-renderer.js.
         const lang = (tok.lang || "").toLowerCase().trim();
-        return lang === "map" ? this.map.render(tok) : this.code.render(tok);
+        if (lang === "map") return this.map.render(tok);
+        if (["video", "audio"].includes(lang)) return this.inline.mediaLinkParagraph(lang, tok.text.trim());
+        if (["3d", "glb", "gltf", "model3d"].includes(lang)) return this.inline.mediaLinkParagraph("3D model", tok.text.trim());
+        return this.code.render(tok);
       }
       case "html":
         return this.renderHtml(tok);

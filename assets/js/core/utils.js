@@ -47,8 +47,11 @@ class Utils {
   /** Rejects javascript:, data:, vbscript: and other non-media schemes. */
   static sanitizeMediaUrl(raw) {
     const url = String(raw ?? "").trim();
+    const baseHref = typeof globalThis !== "undefined" && globalThis.location
+      ? globalThis.location.href
+      : "https://example.com/";
     try {
-      const parsed = new URL(url, location.href);
+      const parsed = new URL(url, baseHref);
       if (!["https:", "http:", "blob:"].includes(parsed.protocol)) return "";
       return parsed.href;
     } catch {

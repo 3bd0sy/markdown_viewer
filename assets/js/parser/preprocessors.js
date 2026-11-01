@@ -3,7 +3,7 @@
    before marked sees the text.
 
    Order matters:
-     footnotes → extractMath → grids → callouts → tabs
+     extractMath → footnotes → grids → callouts → tabs
 
    Each transform works on raw Markdown text and,
    where possible, returns content that marked.lexer
@@ -105,8 +105,16 @@ class Preprocessors {
     for (const [key, value] of defs) {
       const safe = Utils.esc(key);
       const num = numbers.get(key) ?? "?";
-      // Render inline markdown (bold, code, links) inside the footnote body.
-      const rendered = marked.parseInline(value);
+      // Keep math placeholders opaque while marked parses bold/code/links.
+      const mathKeys = [];
+      const protectedValue = value.replace(/«MATH_\d+»/g, (key) => {
+        const safeKey = `«MATHPLACEHOLDER${mathKeys.length}»`;
+        mathKeys.push(key);
+        return safeKey;
+      });
+      const rendered = marked
+        .parseInline(protectedValue)
+        .replace(/«MATHPLACEHOLDER(\d+)»/g, (_, index) => mathKeys[+index]);
       out +=
         `<p id="fn-${safe}" class="fn-item">` +
         `<a href="#fnref-${safe}" class="fn-back" title="العودة للمرجع">↩</a> ` +
@@ -127,41 +135,144 @@ class Preprocessors {
    * mangle them. Fenced code is skipped, so a `$` inside a
    * shell snippet stays a `$`.
    */
+  static _looksLikeMathCandidate(expr) {
+    const text = String(expr ?? "").trim();
+    if (!text) return false;
+
+    const inner = text.replace(/^\$\$?|^\\\(|^\\\[|\$\$?$|\\\)$|\\\]$/g, "").trim();
+
+    if (!inner) return false;
+
+    const currencyPattern =
+      /^\$?\d+(?:[.,]\d+)?(?:\s*(?:USD|EUR|GBP|JPY|AUD|CAD|CHF|CNY|SAR|AED|QAR|KWD|OMR|BHD|EGP|MAD|TRY|RUB|INR|PKR|ILS|[A-Z]{3}))?$/i;
+    const plainNumber = /^\d+(?:[.,]\d+)?$/;
+    if (plainNumber.test(inner) || currencyPattern.test(inner)) return false;
+
+    const numericPrefix = inner.match(/^\d+(?:[.,]\d+)?/);
+    if (numericPrefix) {
+      const tail = inner.slice(numericPrefix[0].length).trimStart();
+      if (/^\s*[A-Za-z]/.test(inner.slice(numericPrefix[0].length))) return false;
+      if (/^[A-Za-z]{2,}/.test(tail)) {
+        const name = tail.match(/^[A-Za-z_]+/)[0];
+        const rest = tail.slice(name.length);
+        if (!/^[+\-*=/^_{}()\[\]<>|&\\]/.test(rest)) return false;
+      }
+    }
+
+    const mathLike = /[A-Za-z\\_{}^=+\-*/%<>|&\[\]()]/.test(inner) ||
+      /[\u0370-\u03FF\u0591-\u07FF]/.test(inner) ||
+      /\\(?:alpha|beta|gamma|delta|epsilon|theta|lambda|pi|sigma|omega|sum|int|frac|sqrt|bar|vec|hat|begin|end|left|right|cdot|times|pm|neq|approx|infty)/i.test(inner);
+
+    return mathLike;
+  }
+
   static extractMath(src) {
     const map = Object.create(null);
     let index = 0;
 
-    const swap = (segment) =>
-      segment
-        .replace(/\$\$([\s\S]+?)\$\$/g, (match) => {
-          const key = `«MATH_${index++}»`;
-          map[key] = match;
-          return key;
-        })
-        .replace(/\$(?!\s)([^\n$]+?)(?<!\s)\$/g, (match) => {
-          const key = `«MATH_${index++}»`;
-          map[key] = match;
-          return key;
-        });
+    const makeKey = (expr) => {
+      const key = `«MATH_${index++}»`;
+      map[key] = expr;
+      return key;
+    };
+
+    const isEscaped = (text, pos) => {
+      let slashCount = 0;
+      for (let i = pos - 1; i >= 0 && text[i] === "\\"; i--) slashCount++;
+      return slashCount % 2 === 1;
+    };
+
+    const findClosing = (text, from, endMarker) => {
+      let i = from + endMarker.length;
+      while (i < text.length) {
+        if (text.startsWith(endMarker, i) && !isEscaped(text, i)) return i + endMarker.length;
+        i++;
+      }
+      return -1;
+    };
+
+    const fencePatterns = [
+      { open: "$$", close: "$$" },
+      { open: "\\[", close: "\\]" },
+      { open: "\\(", close: "\\)" },
+      { open: "$", close: "$" },
+    ];
+
+    const { masked: fenceMasked, fences } = (() => {
+      const items = [];
+      const text = String(src).replace(Preprocessors.FENCE_RE, (m) => {
+        const key = `«FENCE_${items.length}»`;
+        items.push(m);
+        return key;
+      });
+      return { masked: text, fences: items };
+    })();
+
+    // Inline code spans are also opaque: a dollar sign inside them is source
+    // text, not a request to build an editable Word equation.
+    const inlineCode = [];
+    const masked = fenceMasked.replace(
+      /(^|[^`])(`+)(?!`)([\s\S]*?)\2(?!`)/g,
+      (match, prefix, ticks, content, offset) => {
+        const delimiterStart = offset + prefix.length;
+        let backslashCount = 0;
+        for (let i = delimiterStart - 1; i >= 0 && fenceMasked[i] === "\\"; i -= 1) {
+          backslashCount += 1;
+        }
+        if (backslashCount % 2 === 1) return match;
+
+        const key = `\u0003INLINE_CODE_${inlineCode.length}\u0003`;
+        inlineCode.push(`${ticks}${content}${ticks}`);
+        return `${prefix}${key}`;
+      },
+    );
 
     let out = "";
-    let cursor = 0;
-    const fence = new RegExp(Preprocessors.FENCE_RE.source, "gm");
-    let match;
+    for (let i = 0; i < masked.length;) {
+      let matched = null;
 
-    while ((match = fence.exec(src)) !== null) {
-      out += swap(src.slice(cursor, match.index));
-      out += match[0]; // fenced block passes through untouched
-      cursor = match.index + match[0].length;
+      for (const { open, close } of fencePatterns) {
+        if (!masked.startsWith(open, i) || isEscaped(masked, i)) continue;
+        const closeIndex = findClosing(masked, i, close);
+        if (closeIndex === -1) continue;
+
+        const candidate = masked.slice(i, closeIndex);
+        if (open === "$") {
+          // A vertical bar is valid math syntax (absolute values,
+          // conditional probability, set notation); only inline newlines
+          // are excluded here.
+          if (/[\r\n]/.test(candidate)) continue;
+          if (!Preprocessors._looksLikeMathCandidate(candidate)) continue;
+        }
+
+        matched = { start: i, end: closeIndex, value: candidate };
+        break;
+      }
+
+      if (!matched) {
+        out += masked[i];
+        i++;
+        continue;
+      }
+
+      out += makeKey(matched.value);
+      i = matched.end;
     }
-    out += swap(src.slice(cursor));
 
-    return { src: out, map };
+    out = out.replace(/\u0003INLINE_CODE_(\d+)\u0003/g, (_, idx) => inlineCode[+idx]);
+    out = out.replace(/«FENCE_(\d+)»/g, (_, idx) => fences[+idx]);
+    return { src: out, map, fences };
   }
 
   /** Single pass — the old version scanned the whole string per equation. */
   static restoreMath(html, map) {
     return html.replace(/«MATH_\d+»/g, (key) => map[key] ?? key);
+  }
+
+  /** Safely restore any fenced blocks that were temporarily masked. */
+  static restoreFences(html, fences) {
+    if (!Array.isArray(fences) || !fences.length) return html;
+    return String(html).replace(/«FENCE_(\d+)»/g, (_, i) => fences[+i] ?? `«FENCE_${i}»`);
   }
 
   /* ═══════════════════════════════════════════════
@@ -248,11 +359,11 @@ class Preprocessors {
       if (!body) {
         out.push(
           `<div class="md-callout md-callout-${type}" data-callout="${type}">` +
-            `<div class="md-callout-hdr">` +
-            `<span class="md-callout-icon" aria-hidden="true">${spec.icon}</span>` +
-            `<span class="md-callout-lbl">${Utils.esc(heading)}</span>` +
-            `</div>` +
-            `</div>`,
+          `<div class="md-callout-hdr">` +
+          `<span class="md-callout-icon" aria-hidden="true">${spec.icon}</span>` +
+          `<span class="md-callout-lbl">${Utils.esc(heading)}</span>` +
+          `</div>` +
+          `</div>`,
         );
         continue;
       }
@@ -270,12 +381,12 @@ class Preprocessors {
 
       out.push(
         `<div class="md-callout md-callout-${type}" data-callout="${type}">` +
-          `<div class="md-callout-hdr">` +
-          `<span class="md-callout-icon" aria-hidden="true">${spec.icon}</span>` +
-          `<span class="md-callout-lbl">${Utils.esc(heading)}</span>` +
-          `</div>` +
-          `<div class="md-callout-body">${innerHtml}</div>` +
-          `</div>`,
+        `<div class="md-callout-hdr">` +
+        `<span class="md-callout-icon" aria-hidden="true">${spec.icon}</span>` +
+        `<span class="md-callout-lbl">${Utils.esc(heading)}</span>` +
+        `</div>` +
+        `<div class="md-callout-body">${innerHtml}</div>` +
+        `</div>`,
       );
     }
 
@@ -376,7 +487,10 @@ class Preprocessors {
    * Preview preprocessing remains separate.
    */
   static prepareForDocx(src) {
-    let text = Preprocessors.footnotes(src);
+    // Protect formulas before footnotes render their inline Markdown; otherwise
+    // marked may interpret LaTeX underscores as emphasis inside the footnote.
+    const mathResult = Preprocessors.extractMath(src);
+    let text = Preprocessors.footnotes(mathResult.src);
 
     const gridResult = Preprocessors.grids(text);
     text = gridResult.src;
@@ -389,6 +503,7 @@ class Preprocessors {
       src: tabResult.src,
       grids: gridResult.grids || [],
       tabs: tabResult.tabs || [],
+      math: mathResult.map || {},
     };
   }
 
@@ -528,9 +643,9 @@ class Preprocessors {
 
       out.push(
         `<div class="md-tabs" data-key="${Utils.attr(tabsKey)}">` +
-          `<div class="md-tabs-nav" role="tablist">${nav}</div>` +
-          `<div class="md-tabs-panels">${panelsHtml}</div>` +
-          `</div>`,
+        `<div class="md-tabs-nav" role="tablist">${nav}</div>` +
+        `<div class="md-tabs-panels">${panelsHtml}</div>` +
+        `</div>`,
       );
     }
 

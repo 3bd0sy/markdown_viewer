@@ -37,15 +37,17 @@ with many diagrams may take a few seconds.
 - **Lists** → Bulleted/numbered lists (level-aware)
 - **Task lists** → ☑ / ☐ symbols
 - **Code blocks** → Monospace with syntax colors and macOS-style header
-- **Callouts** → Colored boxes with accent bar
-- **Tabs** → Sequential sections with `▸ Tab Title` headings
-- **Footnotes** → Numbered list at the end
-- **Blockquotes** → Indented with accent bar
+- **Images** → Markdown and HTML images are embedded as PNG when fetch/conversion succeeds; otherwise a safe link/alt placeholder is used. SVG/vector and animated formats become static images.
+- **Callouts** → Colored boxes with an accent bar; images and links in the body are preserved, but rich formatting is flattened
+- **Tabs** → Static sequential sections in a framed table; a single-tab title is omitted
+- **Footnotes** → Flattened reference and list text at the end (not native Word footnotes)
+- **Blockquotes** → Indented with accent bar; complex nested blocks are lossy
 - **HR** → Horizontal rule
 - **Links** → Clickable hyperlinks
-- **Math** → Rendered as images
+- **Math** → Editable native Word Math (OMML) for the supported LaTeX subset; unsupported commands stop the export with an error. See the [Word export support guide](word-export-support.md) for the full command and content matrix.
 - **Mermaid** → Pre-rendered SVG → PNG embedded
 - **Plotly** → PNG screenshot at high DPI
+- **Video / audio / iframe** → Clickable source links; video posters may be embedded as PNG (playback is not preserved)
 
 ### RTL Support
 
@@ -58,8 +60,7 @@ with many diagrams may take a few seconds.
 
 - Interactive Plotly charts (flattened to PNG)
 - Runnable JavaScript (code source only)
-- Embedded videos (shown as link)
-- 3D models (shown as static)
+- Video/audio playback and 3D model interaction (sources are exported as links; video posters may be static images)
 
 ---
 

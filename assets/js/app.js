@@ -112,8 +112,8 @@ class MarkdownEditorApp {
       this.library.saveCurrent();
     });
 
+    this.math.bindStartup(() => this.renderer.render({ force: true }));
     await this.renderer.render({ force: true });
-    this.math.bindStartup(() => this.math.typeset());
   }
 
   /* ═══════════ Event routing ═══════════ */

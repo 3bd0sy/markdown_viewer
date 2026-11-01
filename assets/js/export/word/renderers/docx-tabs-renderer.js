@@ -45,7 +45,7 @@ class DocxTabsRenderer {
 
     // Handle a single tab without creating a tabs window.
     if (tabs.length === 1) {
-      return this._buildTabContent(tabs[0].body, tabs[0].title);
+      return this.buildContent(tabs[0].body, tabs[0].title);
     }
 
     const frame = {
@@ -264,6 +264,7 @@ class DocxTabsRenderer {
         () => this.renderTokens(tokens),
       );
     } catch (e) {
+      if (e?.code === "DOCX_MATH_CONVERSION") throw e;
       Logger.warn("docx: tab content failed to process", e);
       return [
         new this.d.Paragraph({

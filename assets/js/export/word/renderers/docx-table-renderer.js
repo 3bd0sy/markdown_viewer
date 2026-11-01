@@ -49,14 +49,17 @@ class DocxTableRenderer {
       tokens = [],
       { isHeader = false, isAlt = false } = {},
     ) => {
-      const inline = this.inline.parseInline(
-        tokens.length ? tokens : [{ type: "text", text: "" }],
-        {
-          bold: isHeader,
-          color: isHeader ? "FFFFFF" : "1A1A1A",
-          font: DOCX_THEME.fonts.body,
-          ...(isRtl ? { rightToLeft: true } : {}),
-        },
+      const inline = this.ctx.withScope(
+        { contentWidth: Math.max(1, columnWidth - 240) },
+        () => this.inline.parseInline(
+          tokens.length ? tokens : [{ type: "text", text: "" }],
+          {
+            bold: isHeader,
+            color: isHeader ? "FFFFFF" : "1A1A1A",
+            font: DOCX_THEME.fonts.body,
+            ...(isRtl ? { rightToLeft: true } : {}),
+          },
+        ),
       );
 
       const shading = isHeader

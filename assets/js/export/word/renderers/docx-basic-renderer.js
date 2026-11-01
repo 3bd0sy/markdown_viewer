@@ -206,12 +206,20 @@ class DocxBasicRenderer {
    */
   html(tok) {
     const raw = String(tok.text || "");
-    const text = DocxTextUtils.decode(raw.replace(/<[^>]+>/g, "")).trim();
-    if (!text) return null;
+    const segments = DocxMediaUtils.parseHtmlFragment(raw);
+    const meaningful = segments.some((segment) =>
+      segment.type === "image" || segment.type === "svg" || segment.type === "media" ||
+      segment.type === "link" || (segment.type === "text" && segment.text.trim()),
+    );
+    if (!meaningful) return null;
 
+    const text = segments
+      .map((segment) => segment.type === "text" ? segment.text : segment.alt || segment.src || "")
+      .join(" ")
+      .trim();
     return this.inline.paragraphAuto(text, {
       blockType: "paragraph",
-      children: [this.inline.run({ text, color: "888888", italics: true })],
+      children: this.inline.renderHtmlSegments(segments, { color: "888888" }),
       spacing: { before: 60, after: 60 },
     });
   }

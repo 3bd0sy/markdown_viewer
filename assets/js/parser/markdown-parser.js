@@ -4,8 +4,8 @@
 
    Pipeline:
      source
-       → footnotes
        → extractMath
+       → footnotes
        → grids          (returns markers + map)
        → callouts
        → tabs
@@ -48,18 +48,16 @@ class MarkdownParser {
   parse(source) {
     /* ── 1) Preprocessors in order ──────────── */
 
-    // Footnotes must run before math so `$` inside a
-    // footnote body is protected like any other text.
-    const withFootnotes = Preprocessors.footnotes(source);
-
-    // Protect LaTeX spans before any HTML generation.
-    const { src: afterMath, map: mathMap } =
-      Preprocessors.extractMath(withFootnotes);
+    // Protect LaTeX spans before footnotes render inline Markdown, so
+    // underscores and other LaTeX syntax cannot be consumed as formatting.
+    const { src: afterMath, map: mathMap, fences: fenceMap = [] } =
+      Preprocessors.extractMath(source);
+    const withFootnotes = Preprocessors.footnotes(afterMath);
 
     // Grids run on raw Markdown and store item content
     // verbatim. They must run BEFORE callouts and tabs
     // so item bodies keep their original container syntax.
-    const { src: afterGrids, grids } = Preprocessors.grids(afterMath);
+    const { src: afterGrids, grids } = Preprocessors.grids(withFootnotes);
 
     // Callouts and tabs generate single-line HTML blocks
     // that marked.lexer can consume as one piece.
@@ -83,6 +81,7 @@ class MarkdownParser {
     let html = this._processTokensToHtml(tokens, ctx);
 
     html = Preprocessors.restoreMath(html, mathMap);
+    html = Preprocessors.restoreFences(html, fenceMap);
     return Preprocessors.freezeCheckboxes(html);
   }
 
@@ -202,12 +201,12 @@ class MarkdownParser {
    */
   _renderGridItem(rawMarkdown, parentCtx) {
     /* ── 1) Preprocessors on the item body ─── */
-    const withFootnotes = Preprocessors.footnotes(rawMarkdown);
-    const { src: afterMath, map: mathMap } =
-      Preprocessors.extractMath(withFootnotes);
+    const { src: afterMath, map: mathMap, fences: fenceMap = [] } =
+      Preprocessors.extractMath(rawMarkdown);
+    const withFootnotes = Preprocessors.footnotes(afterMath);
 
     // Nested grids inside this item — their own map.
-    const { src: afterGrids, grids } = Preprocessors.grids(afterMath);
+    const { src: afterGrids, grids } = Preprocessors.grids(withFootnotes);
 
     let src = Preprocessors.callouts(afterGrids);
     src = Preprocessors.tabs(src);
@@ -223,6 +222,7 @@ class MarkdownParser {
     let html = this._processTokensToHtml(tokens, childCtx);
 
     html = Preprocessors.restoreMath(html, mathMap);
+    html = Preprocessors.restoreFences(html, fenceMap);
     return html;
   }
 
